@@ -247,3 +247,155 @@ button:disabled {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.review-settings {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.review-settings label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.review-settings input {
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #e7e5e4;
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: #ffffff;
+}
+
+.review-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.review-row span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media (min-width: 720px) {
+  .review-settings {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.review-meal-text {
+  display: grid;
+  gap: 4px;
+}
+
+.quantity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.quantity-grid label,
+.review-settings label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.quantity-grid input,
+.review-settings input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.extra-meals {
+  display: grid;
+  gap: 14px;
+  margin-top: 28px;
+  border-top: 1px solid #e7e5e4;
+  padding-top: 24px;
+}
+
+.extra-meals p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .review-row {
+    display: grid;
+  }
+
+  .quantity-grid {
+    min-width: 0;
+  }
+}
+
+.option-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 20px 0 28px;
+}
+
+.control-button,
+.control-active {
+  width: 100%;
+  border-radius: 999px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.control-button {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.control-button:hover {
+  background: #cbd5e1;
+}
+
+.control-active {
+  background: #047857;
+  color: white;
+}
+
+.quantity-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  width: min(100%, 260px);
+}
+
+.quantity-grid input,
+.review-settings input {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .option-controls {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
