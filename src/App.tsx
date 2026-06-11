@@ -252,6 +252,8 @@ function App() {
   const [quantities, setQuantities] = useState<Quantities>({})
   const [extraSmall, setExtraSmall] = useState(2)
   const [extraLarge, setExtraLarge] = useState(2)
+  const [generatedEmail, setGeneratedEmail] = useState('')
+  const [approved, setApproved] = useState(false)
 
   const selectedMeals = selectedMealIds
     .map((id) => meals.find((meal) => meal.id === id))
@@ -281,7 +283,7 @@ function App() {
       ...current,
       [meal.id]: {
         ...currentQty,
-        [person]: Number.isNaN(value) ? 0 : value,
+        [person]: Number.isNaN(value) ? 0 : Math.max(0, value),
       },
     }))
   }
@@ -323,6 +325,33 @@ function App() {
     return categoryMeals.slice(0, 4)
   }
 
+  function buildChefEmail() {
+    const extraLine = `${extraSmall} additional small and ${extraLarge} additional large`
+
+    const mealLines = selectedMeals.map((meal) => {
+      const qty = getQuantity(meal)
+      return `${meal.description} D${qty.david}-L${qty.lynn}`
+    })
+
+    return `${extraLine}\n\nFinalized Menu\n\n${mealLines.join('\n')}`
+  }
+
+  const chefEmail = generatedEmail || buildChefEmail()
+
+  function approveAndSave() {
+    setGeneratedEmail(chefEmail)
+    setApproved(true)
+    navigator.clipboard?.writeText(chefEmail).catch(() => undefined)
+  }
+
+  function openChefEmail() {
+    const mailto = `mailto:info@uniwellness.life?subject=${encodeURIComponent(
+      'Finalized Menu',
+    )}&body=${encodeURIComponent(chefEmail)}`
+
+    window.location.href = mailto
+  }
+
   if (started && screen === 'review') {
     return (
       <main className="app-shell">
@@ -347,6 +376,7 @@ function App() {
                       David
                       <input
                         type="number"
+                        min="0"
                         value={qty.david}
                         onChange={(event) => updateQuantity(meal, 'david', Number(event.target.value))}
                       />
@@ -356,6 +386,7 @@ function App() {
                       Lynn
                       <input
                         type="number"
+                        min="0"
                         value={qty.lynn}
                         onChange={(event) => updateQuantity(meal, 'lynn', Number(event.target.value))}
                       />
@@ -378,7 +409,8 @@ function App() {
                 <input
                   type="number"
                   value={extraSmall}
-                  onChange={(event) => setExtraSmall(Number(event.target.value))}
+                  min="0"
+                  onChange={(event) => setExtraSmall(Math.max(0, Number(event.target.value)))}
                 />
               </label>
 
@@ -387,7 +419,8 @@ function App() {
                 <input
                   type="number"
                   value={extraLarge}
-                  onChange={(event) => setExtraLarge(Number(event.target.value))}
+                  min="0"
+                  onChange={(event) => setExtraLarge(Math.max(0, Number(event.target.value)))}
                 />
               </label>
             </div>
@@ -397,8 +430,26 @@ function App() {
             <button type="button" className="secondary-button" onClick={() => setScreen('pick')}>
               Back to picks
             </button>
-            <button type="button">Approve & generate email</button>
+            <button type="button" onClick={approveAndSave}>
+              Approve & save
+            </button>
           </div>
+
+          <section className="email-preview">
+            <h2>Chef Email</h2>
+            <p>Edit this before sending if you want to add comments.</p>
+            {approved && <p className="approved-message">Approved and saved. Email copied to clipboard.</p>}
+            <textarea
+              value={chefEmail}
+              onChange={(event) => {
+                setGeneratedEmail(event.target.value)
+                setApproved(false)
+              }}
+            />
+            <button type="button" onClick={openChefEmail}>
+              Open email to chef
+            </button>
+          </section>
         </section>
       </main>
     )

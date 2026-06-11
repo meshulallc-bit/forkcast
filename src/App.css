@@ -399,3 +399,34 @@ button:disabled {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.email-preview {
+  margin-top: 28px;
+  border-top: 1px solid #e7e5e4;
+  padding-top: 24px;
+}
+
+.email-preview p {
+  margin: 6px 0 12px;
+  color: #64748b;
+}
+
+.email-preview textarea {
+  width: 100%;
+  min-height: 220px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+  padding: 14px;
+  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.approved-message {
+  border-radius: 14px;
+  background: #dcfce7;
+  color: #166534 !important;
+  padding: 10px 12px;
+  font-weight: 900;
+}
