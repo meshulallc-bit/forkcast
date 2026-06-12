@@ -187,6 +187,13 @@ function formatWeek(value: string) {
   })
 }
 
+function formatFriendlyDate(value: string) {
+  const date = parseIsoDate(value)
+  const day = date.getDate()
+  const suffix = day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th'
+  return `${date.toLocaleDateString(undefined, { month: 'long' })} ${day}${suffix}`
+}
+
 function formatLastOrdered(value: string) {
   return value.match(/^\d{4}-\d{2}-\d{2}$/) ? formatWeek(value) : value
 }
@@ -858,7 +865,8 @@ function App() {
       ],
     })
 
-    const body = `Hi,\n\nWe are skipping meal delivery for the week of ${formatWeek(selectedWeekOf)}.\n\nThank you.`
+    const nextMealService = toIsoDate(addDays(parseIsoDate(selectedWeekOf), 7))
+    const body = `Hi, Chef!\n\nI wanted to let you know that we need to skip meal prep for the week of ${formatFriendlyDate(selectedWeekOf)}.\n\nWe will see you on ${formatFriendlyDate(nextMealService)}.\n\nBest,`
     const mailto = `mailto:info@uniwellness.life?cc=${encodeURIComponent('dsr13@cox.net')}&subject=${encodeURIComponent(
       `Skipping meals - Week of ${formatWeek(selectedWeekOf)}`,
     )}&body=${encodeURIComponent(body)}`
