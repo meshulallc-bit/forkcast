@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import './App.css'
 import { meals as baseMeals, type Meal, type MealCategory } from './mealData'
@@ -12,6 +12,13 @@ type Screen = 'home' | 'pick' | 'review' | 'history'
 type NewMealDraft = { category: MealCategory; description: string }
 type ImportMealDraft = { text: string }
 type ImportMealEntry = { description: string; category: MealCategory }
+type SelectionDraft = {
+  selectedMealIds: string[]
+  quantities: Quantities
+  chefNotes: ChefNotes
+  extraSmall: number
+  extraLarge: number
+}
 
 type CommentEntry = {
   id: string
@@ -35,6 +42,7 @@ type WeeklySelection = {
 
 type StoredAppData = {
   submittedWeeks: WeeklySelection[]
+  selectionDrafts: Record<string, SelectionDraft>
   mealOverrides: MealOverrides
   customMeals: Meal[]
   deletedMealIds: string[]
@@ -64,7 +72,7 @@ const statusLabels: Record<MealStatus, string> = {
 }
 
 function loadStoredData(): StoredAppData {
-  const fallback = { submittedWeeks: [], mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, unmatchedEdits: {} }
+  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, unmatchedEdits: {} }
 
   try {
     const raw = localStorage.getItem(storageKey)
@@ -72,6 +80,7 @@ function loadStoredData(): StoredAppData {
     const parsed = JSON.parse(raw) as Partial<StoredAppData>
     return {
       submittedWeeks: parsed.submittedWeeks ?? [],
+      selectionDrafts: parsed.selectionDrafts ?? {},
       mealOverrides: parsed.mealOverrides ?? {},
       customMeals: parsed.customMeals ?? [],
       deletedMealIds: parsed.deletedMealIds ?? [],
@@ -329,6 +338,33 @@ function App() {
 
   const selectedMeals = selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
 
+  useEffect(() => {
+    if (!selectedWeekOf || (screen !== 'pick' && screen !== 'review')) return
+
+    const draft: SelectionDraft = {
+      selectedMealIds,
+      quantities,
+      chefNotes,
+      extraSmall,
+      extraLarge,
+    }
+
+    setStoredData((current) => {
+      const currentDraft = current.selectionDrafts[selectedWeekOf]
+      if (JSON.stringify(currentDraft) === JSON.stringify(draft)) return current
+
+      const next = {
+        ...current,
+        selectionDrafts: {
+          ...current.selectionDrafts,
+          [selectedWeekOf]: draft,
+        },
+      }
+      saveStoredData(next)
+      return next
+    })
+  }, [chefNotes, extraLarge, extraSmall, quantities, screen, selectedMealIds, selectedWeekOf])
+
   function persist(next: StoredAppData) {
     setStoredData(next)
     saveStoredData(next)
@@ -412,10 +448,13 @@ function App() {
   }
 
   function startWeekSelection(weekOf: string) {
+    const draft = storedData.selectionDrafts[weekOf]
     setSelectedWeekOf(weekOf)
-    setSelectedMealIds([])
-    setQuantities({})
-    setChefNotes({})
+    setSelectedMealIds(draft?.selectedMealIds ?? [])
+    setQuantities(draft?.quantities ?? {})
+    setChefNotes(draft?.chefNotes ?? {})
+    setExtraSmall(draft?.extraSmall ?? 2)
+    setExtraLarge(draft?.extraLarge ?? 2)
     setGeneratedEmail('')
     setApproved(false)
     setChefEmailOpened(false)
@@ -778,8 +817,10 @@ function App() {
       submittedWeek,
       ...storedData.submittedWeeks.filter((week) => week.weekOf !== selectedWeekOf),
     ]
+    const nextSelectionDrafts = { ...storedData.selectionDrafts }
+    delete nextSelectionDrafts[selectedWeekOf]
 
-    persist({ ...storedData, submittedWeeks, mealOverrides: nextOverrides })
+    persist({ ...storedData, submittedWeeks, selectionDrafts: nextSelectionDrafts, mealOverrides: nextOverrides })
     setGeneratedEmail(chefEmail)
     setApproved(true)
     setChefEmailOpened(false)
@@ -805,8 +846,12 @@ function App() {
       selections: [],
     }
 
+    const nextSelectionDrafts = { ...storedData.selectionDrafts }
+    delete nextSelectionDrafts[selectedWeekOf]
+
     persist({
       ...storedData,
+      selectionDrafts: nextSelectionDrafts,
       submittedWeeks: [
         submittedWeek,
         ...storedData.submittedWeeks.filter((week) => week.weekOf !== selectedWeekOf),
