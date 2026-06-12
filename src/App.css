@@ -343,6 +343,52 @@ button:disabled {
   color: white;
 }
 
+@media (max-width: 640px) {
+  .meal-card-header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 14px 0;
+  }
+
+  .meal-title-button,
+  .meal-title-static {
+    width: 100%;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .meal-title-button strong,
+  .meal-title-static strong {
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+
+  .status-choice-row {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .status-chip {
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+
+  .meal-card-body {
+    padding: 12px 14px 14px;
+  }
+
+  .chef-note-field {
+    margin: 0 14px 14px;
+  }
+
+  .meal-card-bottom-actions {
+    padding: 0 14px 14px;
+  }
+}
+
 .checked-box {
   background: var(--clear-sky-blue);
 }
