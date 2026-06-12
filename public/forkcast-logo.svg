@@ -1,0 +1,30 @@
+<svg width="900" height="300" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Forkcast</title>
+  <desc id="desc">Forkcast logo with weather icon, fork, and wordmark</desc>
+  <defs>
+    <style>
+      .orange { fill: #FF6600; }
+      .navy { fill: #1A365D; }
+      .wordmark {
+        fill: #1A365D;
+        font-family: Montserrat, Avenir Next, Helvetica Neue, Arial, sans-serif;
+        font-size: 92px;
+        font-weight: 700;
+        letter-spacing: 6px;
+      }
+    </style>
+  </defs>
+
+  <g transform="translate(135 50)">
+    <path class="orange" d="M50 119c-18 0-33 15-33 33s15 33 33 33h63v-16H50c-9 0-17-8-17-17s8-17 17-17h9l4-8c8-17 25-28 44-28 23 0 43 16 48 38l16-4c-7-30-33-50-64-50-24 0-46 14-57 36Z"/>
+    <path class="orange" d="M35 103c-2-9-1-19 4-28 12-22 40-30 62-18 12 7 20 18 23 31l-16 4c-2-8-7-15-15-20-14-8-32-3-40 11-3 6-4 12-3 18l-15 2Z"/>
+    <path class="orange" d="M86 12 72 43h32L86 12Zm-52 28-11 11 27 17 8-14-24-14ZM0 91l10 20 30-15-5-15L0 91Zm155 67c12 0 22-10 22-22 0-10-7-19-17-21l-5 16c4 1 6 3 6 6 0 4-3 6-6 6h-9v15h9Z"/>
+    <path class="navy" d="M66 197c5 6 5 19 0 25-5-6-5-19 0-25Zm29 0c5 6 5 19 0 25-5-6-5-19 0-25Zm29 0c5 6 5 19 0 25-5-6-5-19 0-25Z"/>
+  </g>
+
+  <g transform="translate(250 35)">
+    <path class="navy" d="M50 0c7 0 12 5 12 12v70c0 11 17 11 17 0V12c0-7 5-12 12-12s12 5 12 12v70c0 11 17 11 17 0V12c0-7 5-12 12-12s12 5 12 12v88c0 31-20 58-49 67l9 125c1 16-11 29-27 29s-28-13-27-29l9-125c-29-9-49-36-49-67V12C38 5 43 0 50 0Z"/>
+  </g>
+
+  <text class="wordmark" x="370" y="168">FORKCAST</text>
+</svg>
