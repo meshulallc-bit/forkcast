@@ -638,6 +638,30 @@ button:disabled {
   color: var(--forkcast-navy);
 }
 
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.comment-edit-form {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-edit-form select,
+.comment-edit-form input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--forkcast-navy);
+  padding: 10px 12px;
+  font: inherit;
+}
+
 .add-comment-row {
   display: grid;
   gap: 8px;

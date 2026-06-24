@@ -55,6 +55,8 @@ type StoredAppData = {
   customMeals: Meal[]
   deletedMealIds: string[]
   mealComments: Record<string, CommentEntry[]>
+  editedComments: Record<string, Partial<CommentEntry>>
+  deletedCommentIds: string[]
   mealRatings: Record<string, RatingEntry[]>
   unmatchedEdits: Record<string, string>
 }
@@ -81,7 +83,7 @@ const statusLabels: Record<MealStatus, string> = {
 }
 
 function loadStoredData(): StoredAppData {
-  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, mealRatings: {}, unmatchedEdits: {} }
+  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, editedComments: {}, deletedCommentIds: [], mealRatings: {}, unmatchedEdits: {} }
 
   try {
     const raw = localStorage.getItem(storageKey)
@@ -94,6 +96,8 @@ function loadStoredData(): StoredAppData {
       customMeals: parsed.customMeals ?? [],
       deletedMealIds: parsed.deletedMealIds ?? [],
       mealComments: parsed.mealComments ?? {},
+      editedComments: parsed.editedComments ?? {},
+      deletedCommentIds: parsed.deletedCommentIds ?? [],
       mealRatings: parsed.mealRatings ?? {},
       unmatchedEdits: parsed.unmatchedEdits ?? {},
     }
@@ -282,6 +286,8 @@ function App() {
   const [approved, setApproved] = useState(false)
   const [chefEmailOpened, setChefEmailOpened] = useState(false)
   const [commentDrafts, setCommentDrafts] = useState<Record<string, { author: string; text: string }>>({})
+  const [editingCommentIds, setEditingCommentIds] = useState<string[]>([])
+  const [commentEditDrafts, setCommentEditDrafts] = useState<Record<string, { author: string; text: string }>>({})
   const [newMealDraft, setNewMealDraft] = useState<NewMealDraft>({ category: 'breakfast', description: '' })
   const [showAddMeal, setShowAddMeal] = useState(false)
   const [mealSearch, setMealSearch] = useState('')
@@ -398,6 +404,8 @@ function App() {
     )
 
     return [...(storedData.mealComments[meal.id] ?? []), ...historicalComments, ...importedComment]
+      .filter((comment) => !storedData.deletedCommentIds.includes(comment.id))
+      .map((comment) => ({ ...comment, ...storedData.editedComments[comment.id] }))
       .filter((comment) => comment.text.trim())
       .filter((comment, index, comments) => comments.findIndex((item) => item.date === comment.date && item.text === comment.text) === index)
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -484,6 +492,75 @@ function App() {
         [mealId]: [comment, ...(storedData.mealComments[mealId] ?? [])],
       },
     })
+  }
+
+  function saveEditedComment(commentId: string, author: string, text: string) {
+    const trimmed = text.trim()
+    if (!trimmed) return
+
+    persist({
+      ...storedData,
+      editedComments: {
+        ...storedData.editedComments,
+        [commentId]: { author, text: trimmed },
+      },
+    })
+    setEditingCommentIds((current) => current.filter((id) => id !== commentId))
+  }
+
+  function deleteComment(commentId: string) {
+    if (!window.confirm('Delete this comment?')) return
+
+    const nextEditedComments = { ...storedData.editedComments }
+    delete nextEditedComments[commentId]
+
+    persist({
+      ...storedData,
+      editedComments: nextEditedComments,
+      deletedCommentIds: Array.from(new Set([...storedData.deletedCommentIds, commentId])),
+    })
+    setEditingCommentIds((current) => current.filter((id) => id !== commentId))
+  }
+
+  function startEditingComment(comment: CommentEntry) {
+    setCommentEditDrafts((current) => ({
+      ...current,
+      [comment.id]: { author: comment.author, text: comment.text },
+    }))
+    setEditingCommentIds((current) => current.includes(comment.id) ? current : [...current, comment.id])
+  }
+
+  function renderCommentEntry(comment: CommentEntry) {
+    const isEditing = editingCommentIds.includes(comment.id)
+    const draft = commentEditDrafts[comment.id] ?? { author: comment.author, text: comment.text }
+
+    return (
+      <div className="comment-entry" key={comment.id}>
+        {isEditing ? (
+          <div className="comment-edit-form">
+            <select value={draft.author} onChange={(event) => setCommentEditDrafts((current) => ({ ...current, [comment.id]: { ...draft, author: event.target.value } }))}>
+              <option value="Lynn">Lynn</option>
+              <option value="David">David</option>
+              <option value="Imported">Imported</option>
+            </select>
+            <input value={draft.text} onChange={(event) => setCommentEditDrafts((current) => ({ ...current, [comment.id]: { ...draft, text: event.target.value } }))} />
+            <div className="comment-actions">
+              <button type="button" className="compact-button" onClick={() => saveEditedComment(comment.id, draft.author, draft.text)}>Save</button>
+              <button type="button" className="secondary-button compact-button" onClick={() => setEditingCommentIds((current) => current.filter((id) => id !== comment.id))}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p>{comment.text}</p>
+            <span>{comment.author} · {formatLastOrdered(comment.date)}</span>
+            <div className="comment-actions">
+              <button type="button" className="secondary-button compact-button" onClick={() => startEditingComment(comment)}>Edit</button>
+              <button type="button" className="secondary-button compact-button" onClick={() => deleteComment(comment.id)}>Delete</button>
+            </div>
+          </>
+        )}
+      </div>
+    )
   }
 
   function updateUnmatchedDescription(key: string, value: string) {
@@ -1115,18 +1192,17 @@ function App() {
           {meal ? (
             <>
               <div className="comment-list">
-                {commentsForMeal(meal).map((comment) => (
-                  <div className="comment-entry" key={comment.id}>
-                    <p>{comment.text}</p>
-                    <span>{comment.author} · {formatLastOrdered(comment.date)}</span>
-                  </div>
-                ))}
-                {selection.comments && !meal.comments.includes(selection.comments) && (
-                  <div className="comment-entry">
-                    <p>{selection.comments}</p>
-                    <span>Imported · {formatLastOrdered(weekOf)}</span>
-                  </div>
-                )}
+                {commentsForMeal(meal).map(renderCommentEntry)}
+                {selection.comments && !meal.comments.includes(selection.comments) && (() => {
+                  const commentId = `${meal.id}-${weekOf}-${slugify(selection.comments)}`
+                  if (storedData.deletedCommentIds.includes(commentId)) return null
+                  return renderCommentEntry({
+                    id: commentId,
+                    author: storedData.editedComments[commentId]?.author ?? 'Imported',
+                    date: weekOf,
+                    text: storedData.editedComments[commentId]?.text ?? selection.comments,
+                  })
+                })()}
               </div>
               <div className="meal-meta unified-meta">
                 {isEditing && (
