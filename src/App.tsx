@@ -12,6 +12,7 @@ type Screen = 'home' | 'pick' | 'review' | 'history'
 type NewMealDraft = { category: MealCategory; description: string }
 type ImportMealDraft = { text: string }
 type ImportMealEntry = { description: string; category: MealCategory }
+type RatingDrafts = Record<string, number | null>
 type SelectionDraft = {
   selectedMealIds: string[]
   quantities: Quantities
@@ -288,6 +289,7 @@ function App() {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, { author: string; text: string }>>({})
   const [editingCommentIds, setEditingCommentIds] = useState<string[]>([])
   const [commentEditDrafts, setCommentEditDrafts] = useState<Record<string, { author: string; text: string }>>({})
+  const [ratingDrafts, setRatingDrafts] = useState<RatingDrafts>({})
   const [newMealDraft, setNewMealDraft] = useState<NewMealDraft>({ category: 'breakfast', description: '' })
   const [showAddMeal, setShowAddMeal] = useState(false)
   const [mealSearch, setMealSearch] = useState('')
@@ -472,6 +474,49 @@ function App() {
         },
       },
     })
+  }
+
+  function ratingDraftKey(mealId: string, author: 'David' | 'Lynn', weekOf: string) {
+    return `${mealId}-${author}-${weekOf}`
+  }
+
+  function draftRatingValue(meal: Meal, author: 'David' | 'Lynn', weekOf: string, savedValue: number | null) {
+    const key = ratingDraftKey(meal.id, author, weekOf)
+    return Object.prototype.hasOwnProperty.call(ratingDrafts, key) ? ratingDrafts[key] : savedValue
+  }
+
+  function setDraftRating(meal: Meal, author: 'David' | 'Lynn', weekOf: string, rating: number) {
+    setRatingDrafts((current) => ({ ...current, [ratingDraftKey(meal.id, author, weekOf)]: rating }))
+  }
+
+  function clearDraftRating(meal: Meal, author: 'David' | 'Lynn', weekOf: string) {
+    setRatingDrafts((current) => ({ ...current, [ratingDraftKey(meal.id, author, weekOf)]: null }))
+  }
+
+  function saveDraftRating(meal: Meal, author: 'David' | 'Lynn', weekOf: string, savedValue: number | null) {
+    const key = ratingDraftKey(meal.id, author, weekOf)
+    const draftValue = Object.prototype.hasOwnProperty.call(ratingDrafts, key) ? ratingDrafts[key] : savedValue
+    if (draftValue === null || draftValue === undefined) return
+
+    updateMealRating(meal, author, draftValue, weekOf)
+    setRatingDrafts((current) => {
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+  }
+
+  function renderRatingControl(meal: Meal, author: 'David' | 'Lynn', weekOf: string, savedValue: number | null) {
+    const draftValue = draftRatingValue(meal, author, weekOf, savedValue)
+    const hasDraft = Object.prototype.hasOwnProperty.call(ratingDrafts, ratingDraftKey(meal.id, author, weekOf))
+
+    return (
+      <div className="rating-save-row">
+        <StarRating label={author} value={draftValue} onChange={(rating) => setDraftRating(meal, author, weekOf, rating)} />
+        <button type="button" className="compact-button" onClick={() => saveDraftRating(meal, author, weekOf, savedValue)} disabled={!hasDraft || draftValue === null}>Save rating</button>
+        <button type="button" className="secondary-button compact-button" onClick={() => clearDraftRating(meal, author, weekOf)} disabled={draftValue === null}>Clear</button>
+      </div>
+    )
   }
 
   function addMealComment(mealId: string, author: string, text: string) {
@@ -1111,8 +1156,8 @@ function App() {
             </div>
           )}
           <div className="meal-meta unified-meta">
-            <StarRating label="David" value={meal.davidRating} onChange={(rating) => updateMealRating(meal, 'David', rating)} />
-            <StarRating label="Lynn" value={meal.lynnRating} onChange={(rating) => updateMealRating(meal, 'Lynn', rating)} />
+            {renderRatingControl(meal, 'David', toIsoDate(new Date()), meal.davidRating)}
+            {renderRatingControl(meal, 'Lynn', toIsoDate(new Date()), meal.lynnRating)}
             {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
             <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
             <span>Times ordered: {meal.timesOrdered}</span>
@@ -1221,8 +1266,8 @@ function App() {
                     </label>
                   </div>
                 )}
-                <StarRating label="David" value={ratingForMealWeek(meal, 'David', weekOf)} onChange={(rating) => updateMealRating(meal, 'David', rating, weekOf)} />
-                <StarRating label="Lynn" value={ratingForMealWeek(meal, 'Lynn', weekOf)} onChange={(rating) => updateMealRating(meal, 'Lynn', rating, weekOf)} />
+                {renderRatingControl(meal, 'David', weekOf, ratingForMealWeek(meal, 'David', weekOf))}
+                {renderRatingControl(meal, 'Lynn', weekOf, ratingForMealWeek(meal, 'Lynn', weekOf))}
                 {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
                 <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
                 <span>Times ordered: {meal.timesOrdered}</span>

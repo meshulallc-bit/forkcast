@@ -607,6 +607,18 @@ button:disabled {
   color: var(--forecast-orange);
 }
 
+.rating-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rating-save-row .compact-button {
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
 .latest-comment,
 .chef-note-display,
 .comment-entry,
