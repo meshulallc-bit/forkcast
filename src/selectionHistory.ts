@@ -57,13 +57,6 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
     "submittedAt": "2026-06-07",
     "selections": [
       {
-        "description": "I don't think you've made this for us- David wants a light version with brocolli but not the stems",
-        "davidQuantity": 5,
-        "lynnQuantity": 5,
-        "notesForChef": "",
-        "comments": "❤️"
-      },
-      {
         "description": "Marinated oven roasted chicken breast with beet white bean and feta salad",
         "davidQuantity": 3,
         "lynnQuantity": 2,
