@@ -27,6 +27,14 @@ type CommentEntry = {
   text: string
 }
 
+type RatingEntry = {
+  id: string
+  mealId: string
+  author: 'David' | 'Lynn'
+  weekOf: string
+  rating: number
+}
+
 type WeeklySelection = {
   weekOf: string
   submittedAt: string
@@ -47,6 +55,7 @@ type StoredAppData = {
   customMeals: Meal[]
   deletedMealIds: string[]
   mealComments: Record<string, CommentEntry[]>
+  mealRatings: Record<string, RatingEntry[]>
   unmatchedEdits: Record<string, string>
 }
 
@@ -72,7 +81,7 @@ const statusLabels: Record<MealStatus, string> = {
 }
 
 function loadStoredData(): StoredAppData {
-  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, unmatchedEdits: {} }
+  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, mealRatings: {}, unmatchedEdits: {} }
 
   try {
     const raw = localStorage.getItem(storageKey)
@@ -85,6 +94,7 @@ function loadStoredData(): StoredAppData {
       customMeals: parsed.customMeals ?? [],
       deletedMealIds: parsed.deletedMealIds ?? [],
       mealComments: parsed.mealComments ?? {},
+      mealRatings: parsed.mealRatings ?? {},
       unmatchedEdits: parsed.unmatchedEdits ?? {},
     }
   } catch {
@@ -216,12 +226,6 @@ function weekRotationOffset(weekOf: string, category: MealCategory, groupSize: n
 function rotateMeals(meals: Meal[], offset: number) {
   if (offset === 0) return meals
   return [...meals.slice(offset), ...meals.slice(0, offset)]
-}
-
-function averageRating(meal: Meal) {
-  const ratings = [meal.davidRating, meal.lynnRating].filter((rating): rating is number => rating !== null)
-  if (ratings.length === 0) return null
-  return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
 }
 
 function StarRating({ label, value, onChange }: { label: string; value: number | null; onChange: (rating: number) => void }) {
@@ -409,6 +413,57 @@ function App() {
 
   function latestCommentForMeal(meal: Meal) {
     return commentsForMeal(meal)[0]
+  }
+
+  function ratingsForMeal(meal: Meal) {
+    return storedData.mealRatings[meal.id] ?? []
+  }
+
+  function ratingForMealWeek(meal: Meal, author: 'David' | 'Lynn', weekOf: string) {
+    return ratingsForMeal(meal).find((rating) => rating.author === author && rating.weekOf === weekOf)?.rating ?? null
+  }
+
+  function averageRatingForMeal(meal: Meal) {
+    const datedRatings = ratingsForMeal(meal).map((rating) => rating.rating)
+    const legacyRatings = [meal.davidRating, meal.lynnRating].filter((rating): rating is number => rating !== null)
+    const ratings = datedRatings.length > 0 ? datedRatings : legacyRatings
+    if (ratings.length === 0) return null
+    return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+  }
+
+  function ratingCountForMeal(meal: Meal) {
+    const datedCount = ratingsForMeal(meal).length
+    if (datedCount > 0) return datedCount
+    return [meal.davidRating, meal.lynnRating].filter((rating) => rating !== null).length
+  }
+
+  function updateMealRating(meal: Meal, author: 'David' | 'Lynn', rating: number, weekOf = toIsoDate(new Date())) {
+    const currentRatings = storedData.mealRatings[meal.id] ?? []
+    const nextRating: RatingEntry = {
+      id: `${meal.id}-${author}-${weekOf}`,
+      mealId: meal.id,
+      author,
+      weekOf,
+      rating,
+    }
+
+    persist({
+      ...storedData,
+      mealRatings: {
+        ...storedData.mealRatings,
+        [meal.id]: [
+          nextRating,
+          ...currentRatings.filter((entry) => !(entry.author === author && entry.weekOf === weekOf)),
+        ],
+      },
+      mealOverrides: {
+        ...storedData.mealOverrides,
+        [meal.id]: {
+          ...storedData.mealOverrides[meal.id],
+          ...(author === 'David' ? { davidRating: rating } : { lynnRating: rating }),
+        },
+      },
+    })
   }
 
   function addMealComment(mealId: string, author: string, text: string) {
@@ -679,7 +734,7 @@ function App() {
   function recommendationScore(meal: Meal) {
     if (meal.status === 'doNotOrderAgain') return -1
 
-    const avg = averageRating(meal)
+    const avg = averageRatingForMeal(meal)
     const lastOrderedWeeksAgo = meal.lastOrderedDate.match(/^\d{4}-\d{2}-\d{2}$/)
       ? weeksBetween(meal.lastOrderedDate, selectedWeekOf || currentWeekOf)
       : Number.POSITIVE_INFINITY
@@ -693,7 +748,7 @@ function App() {
   }
 
   function recommendationReason(meal: Meal) {
-    const avg = averageRating(meal)
+    const avg = averageRatingForMeal(meal)
     const lastOrderedWeeksAgo = meal.lastOrderedDate.match(/^\d{4}-\d{2}-\d{2}$/)
       ? weeksBetween(meal.lastOrderedDate, selectedWeekOf || currentWeekOf)
       : Number.POSITIVE_INFINITY
@@ -734,7 +789,7 @@ function App() {
     const searchTerm = optionMode === 'all' ? normalizeDescription(mealSearch) : ''
     const categoryMeals = sortedMealsForCategory(category).filter((meal) =>
       (!searchTerm || normalizeDescription(meal.description).includes(searchTerm))
-      && (optionMode !== 'all' || starFilter === 0 || (averageRating(meal) ?? 0) >= starFilter)
+      && (optionMode !== 'all' || starFilter === 0 || (averageRatingForMeal(meal) ?? 0) >= starFilter)
       && (optionMode !== 'all' || !favoritesOnly || meal.status === 'favorite')
       && (optionMode !== 'all' || statusFilter === 'all' || meal.status === statusFilter),
     )
@@ -931,6 +986,8 @@ function App() {
     const showRecommendation = optionMode !== 'all'
     const isEditing = editingMealIds.includes(meal.id)
     const orderedDates = orderedDatesForMeal(meal)
+    const avgRating = averageRatingForMeal(meal)
+    const ratingCount = ratingCountForMeal(meal)
 
     return (
       <article className={`meal-card ${selected ? 'selected' : ''}`} key={meal.id}>
@@ -977,8 +1034,9 @@ function App() {
             </div>
           )}
           <div className="meal-meta unified-meta">
-            <StarRating label="David" value={meal.davidRating} onChange={(rating) => updateMealCard(meal, { davidRating: rating })} />
-            <StarRating label="Lynn" value={meal.lynnRating} onChange={(rating) => updateMealCard(meal, { lynnRating: rating })} />
+            <StarRating label="David" value={meal.davidRating} onChange={(rating) => updateMealRating(meal, 'David', rating)} />
+            <StarRating label="Lynn" value={meal.lynnRating} onChange={(rating) => updateMealRating(meal, 'Lynn', rating)} />
+            {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
             <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
             <span>Times ordered: {meal.timesOrdered}</span>
             {orderedDates.length > 1 && <span>Ordered dates: {orderedDates.map(formatLastOrdered).join(', ')}</span>}
@@ -1018,6 +1076,8 @@ function App() {
     const draft = commentDrafts[selectionKey] ?? { author: 'Lynn', text: '' }
     const isEditing = meal ? editingMealIds.includes(meal.id) : false
     const orderedDates = meal ? orderedDatesForMeal(meal) : []
+    const avgRating = meal ? averageRatingForMeal(meal) : null
+    const ratingCount = meal ? ratingCountForMeal(meal) : 0
 
     return (
       <article className="meal-card history-card" key={selectionKey}>
@@ -1085,8 +1145,9 @@ function App() {
                     </label>
                   </div>
                 )}
-                <StarRating label="David" value={meal.davidRating} onChange={(rating) => updateMealCard(meal, { davidRating: rating })} />
-                <StarRating label="Lynn" value={meal.lynnRating} onChange={(rating) => updateMealCard(meal, { lynnRating: rating })} />
+                <StarRating label="David" value={ratingForMealWeek(meal, 'David', weekOf)} onChange={(rating) => updateMealRating(meal, 'David', rating, weekOf)} />
+                <StarRating label="Lynn" value={ratingForMealWeek(meal, 'Lynn', weekOf)} onChange={(rating) => updateMealRating(meal, 'Lynn', rating, weekOf)} />
+                {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
                 <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
                 <span>Times ordered: {meal.timesOrdered}</span>
                 {orderedDates.length > 1 && <span>Ordered dates: {orderedDates.map(formatLastOrdered).join(', ')}</span>}
@@ -1136,6 +1197,16 @@ function App() {
   }
 
   if (screen === 'history') {
+    const unratedSelections = allSubmittedWeeks.flatMap((week) =>
+      week.selections
+        .filter((selection) => {
+          const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(selection.description))
+          if (!meal) return false
+          return ratingForMealWeek(meal, 'David', week.weekOf) === null || ratingForMealWeek(meal, 'Lynn', week.weekOf) === null
+        })
+        .map((selection) => ({ selection, weekOf: week.weekOf })),
+    )
+
     return (
       <main className="app-shell">
         <section className="hero-card wide-card selection-card">
@@ -1148,6 +1219,22 @@ function App() {
           </div>
           <h1>Current & previous selections</h1>
           <p className="subtitle">Review submitted weeks, rate meals, add comments, and update meal status.</p>
+          <section className="history-week needs-rating-section">
+            <div className="section-heading">
+              <div>
+                <h2>Meals that need ratings</h2>
+                <p>Ordered meals missing a David or Lynn rating since their cook date.</p>
+              </div>
+              <span className={unratedSelections.length === 0 ? 'complete-pill' : 'open-pill'}>{unratedSelections.length === 0 ? 'All rated' : `${unratedSelections.length} left`}</span>
+            </div>
+            {unratedSelections.length > 0 ? (
+              <div className="history-meals">
+                {unratedSelections.map(({ selection, weekOf }) => renderHistorySelection(selection, weekOf))}
+              </div>
+            ) : (
+              <p className="unmatched-note">Everything ordered has a current David and Lynn rating.</p>
+            )}
+          </section>
           <div className="history-list">
             {allSubmittedWeeks.map((week) => (
               <section className="history-week" key={`${week.weekOf}-${week.submittedAt}`}>
