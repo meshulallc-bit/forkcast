@@ -202,6 +202,13 @@ function formatWeek(value: string) {
   })
 }
 
+function formatWeekHeading(value: string) {
+  return parseIsoDate(value).toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 function formatFriendlyDate(value: string) {
   const date = parseIsoDate(value)
   const day = date.getDate()
@@ -1361,7 +1368,7 @@ function App() {
               <section className="history-week" key={`${week.weekOf}-${week.submittedAt}`}>
                 <div className="section-heading">
                   <div>
-                    <h2>Week of {formatWeek(week.weekOf)}</h2>
+                    <h2>Week of {formatWeekHeading(week.weekOf)}</h2>
                     <p>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}</p>
                   </div>
                   <div className="section-actions">

@@ -1199,8 +1199,10 @@ button:disabled {
 }
 
 .history-week {
-  border-top: 1px solid var(--border);
-  padding-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--fresh-tablecloth);
+  padding: 18px;
 }
 
 .history-meal {

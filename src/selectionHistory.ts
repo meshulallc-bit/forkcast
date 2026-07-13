@@ -12,6 +12,47 @@ export type ImportedWeeklySelection = {
 
 export const importedWeeklySelections: ImportedWeeklySelection[] = [
   {
+    "weekOf": "2026-07-12",
+    "submittedAt": "2026-07-12",
+    "selections": [
+      {
+        "description": "Avocado egg and brown rice bowls",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Honey harissa chicken roasted chicken with green beans and chickpeas",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Honey lime chicken with cabbage slaw",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Lemongrass and coconut beef stew with seasonal veg and squash",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Bson lettuce cups with white rice",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-06-14",
     "submittedAt": "2026-06-14",
     "selections": [
