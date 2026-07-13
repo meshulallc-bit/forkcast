@@ -347,7 +347,10 @@ function App() {
       mealId: mealByDescription.get(normalizeDescription(selection.description))?.id ?? mealById.get(historyMealId(selection.description))?.id,
     })),
   }))
-  const allSubmittedWeeks = [...importedWeeks, ...storedData.submittedWeeks].sort((a, b) => b.weekOf.localeCompare(a.weekOf))
+  const submittedWeeksByDate = new Map<string, WeeklySelection>()
+  for (const week of importedWeeks) submittedWeeksByDate.set(week.weekOf, week)
+  for (const week of storedData.submittedWeeks) submittedWeeksByDate.set(week.weekOf, week)
+  const allSubmittedWeeks = Array.from(submittedWeeksByDate.values()).sort((a, b) => b.weekOf.localeCompare(a.weekOf))
   const submittedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
   const today = new Date()
   const currentWeekOf = sundayForDate(today)
@@ -1333,10 +1336,7 @@ function App() {
         <section className="hero-card wide-card selection-card">
           <div className="page-topline">
             <p className="eyebrow">Forkcast</p>
-            <div className="top-actions">
-              {optionMode === 'all' && <button type="button" className="secondary-button compact-button" onClick={() => setShowAddMeal((current) => !current)}>+ New</button>}
-              <button type="button" className="secondary-button compact-button" onClick={() => setScreen('home')}>Home</button>
-            </div>
+            <button type="button" className="secondary-button compact-button" onClick={() => setScreen('home')}>Home</button>
           </div>
           <h1>Current & previous selections</h1>
           <p className="subtitle">Review submitted weeks, rate meals, add comments, and update meal status.</p>
