@@ -280,6 +280,28 @@ function buildDescriptionMap(meals: Meal[]) {
   return new Map(meals.map((meal) => [normalizeDescription(meal.description), meal]))
 }
 
+function mergeWeeklySelections(base: WeeklySelection, incoming: WeeklySelection): WeeklySelection {
+  const selectionsByDescription = new Map(base.selections.map((selection) => [normalizeDescription(selection.description), selection]))
+
+  for (const selection of incoming.selections) {
+    const key = normalizeDescription(selection.description)
+    const existingSelection = selectionsByDescription.get(key)
+
+    selectionsByDescription.set(key, existingSelection ? {
+      ...existingSelection,
+      ...selection,
+      notesForChef: selection.notesForChef || existingSelection.notesForChef,
+      comments: selection.comments || existingSelection.comments,
+    } : selection)
+  }
+
+  return {
+    weekOf: base.weekOf,
+    submittedAt: base.submittedAt > incoming.submittedAt ? base.submittedAt : incoming.submittedAt,
+    selections: Array.from(selectionsByDescription.values()),
+  }
+}
+
 function App() {
   const [storedData, setStoredData] = useState(loadStoredData)
   const [screen, setScreen] = useState<Screen>('home')
@@ -311,12 +333,20 @@ function App() {
     .filter((meal) => !storedData.deletedMealIds.includes(meal.id))
   const baseAndCustomByDescription = buildDescriptionMap(baseAndCustomMeals)
   const historyOptionMealMap = new Map<string, Meal>()
+  const importedOrderStats = new Map<string, { lastOrderedDate: string; timesOrdered: number }>()
 
   for (const week of importedWeeklySelections) {
     week.selections.forEach((selection, index) => {
       const selectionKey = `${selection.description}-`
       const description = storedData.unmatchedEdits[selectionKey] ?? selection.description
       const id = historyMealId(selection.description)
+      const orderKey = normalizeDescription(description)
+      const orderStats = importedOrderStats.get(orderKey)
+
+      importedOrderStats.set(orderKey, {
+        lastOrderedDate: orderStats && orderStats.lastOrderedDate > week.weekOf ? orderStats.lastOrderedDate : week.weekOf,
+        timesOrdered: (orderStats?.timesOrdered ?? 0) + 1,
+      })
 
       if (storedData.deletedMealIds.includes(id) || baseAndCustomByDescription.has(normalizeDescription(description))) return
 
@@ -344,7 +374,22 @@ function App() {
   }
 
   const meals = [...baseAndCustomMeals, ...historyOptionMealMap.values()]
-    .map((meal) => ({ ...meal, ...storedData.mealOverrides[meal.id] }))
+    .map((meal): Meal => {
+      const mergedMeal: Meal = { ...meal, ...storedData.mealOverrides[meal.id] }
+      const orderStats = importedOrderStats.get(normalizeDescription(mergedMeal.description))
+
+      if (!orderStats) return mergedMeal
+
+      const status: MealStatus = mergedMeal.status === 'doNotOrderAgain' ? mergedMeal.status : 'ordered'
+
+      return {
+        ...mergedMeal,
+        status,
+        recommendedBecause: 'Ordered before and available in the Natanya menu.',
+        lastOrderedDate: mergedMeal.lastOrderedDate > orderStats.lastOrderedDate ? mergedMeal.lastOrderedDate : orderStats.lastOrderedDate,
+        timesOrdered: Math.max(mergedMeal.timesOrdered, orderStats.timesOrdered),
+      }
+    })
   const mealById = new Map(meals.map((meal) => [meal.id, meal]))
   const mealByDescription = buildDescriptionMap(meals)
   const importedWeeks: WeeklySelection[] = importedWeeklySelections.map((week) => ({
@@ -356,7 +401,10 @@ function App() {
   }))
   const submittedWeeksByDate = new Map<string, WeeklySelection>()
   for (const week of importedWeeks) submittedWeeksByDate.set(week.weekOf, week)
-  for (const week of storedData.submittedWeeks) submittedWeeksByDate.set(week.weekOf, week)
+  for (const week of storedData.submittedWeeks) {
+    const importedWeek = submittedWeeksByDate.get(week.weekOf)
+    submittedWeeksByDate.set(week.weekOf, importedWeek ? mergeWeeklySelections(importedWeek, week) : week)
+  }
   const allSubmittedWeeks = Array.from(submittedWeeksByDate.values()).sort((a, b) => b.weekOf.localeCompare(a.weekOf))
   const submittedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
   const today = new Date()

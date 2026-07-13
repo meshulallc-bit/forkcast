@@ -53,6 +53,47 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
     ]
   },
   {
+    "weekOf": "2026-06-21",
+    "submittedAt": "2026-06-21",
+    "selections": [
+      {
+        "description": "Egg and banana pancakes with fresh fruit chicken sausage",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "David wants fewer processed meats... could we do turkey bacon?",
+        "comments": ""
+      },
+      {
+        "description": "Lemon broccoli rabe with chicken and white beans",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Lentil zucchini and mint salad",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Chicken cabbage and beet soup",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Lemon pepper chicken roasted broccolini and asparagus and sweet potato",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-06-14",
     "submittedAt": "2026-06-14",
     "selections": [
