@@ -220,6 +220,15 @@ function formatLastOrdered(value: string) {
   return value.match(/^\d{4}-\d{2}-\d{2}$/) ? formatWeek(value) : value
 }
 
+function latestOrderedDate(a: string, b: string) {
+  const aIsDate = a.match(/^\d{4}-\d{2}-\d{2}$/)
+  const bIsDate = b.match(/^\d{4}-\d{2}-\d{2}$/)
+
+  if (!aIsDate) return b
+  if (!bIsDate) return a
+  return a > b ? a : b
+}
+
 function sundayForDate(date: Date) {
   return toIsoDate(addDays(date, -date.getDay()))
 }
@@ -344,7 +353,7 @@ function App() {
       const orderStats = importedOrderStats.get(orderKey)
 
       importedOrderStats.set(orderKey, {
-        lastOrderedDate: orderStats && orderStats.lastOrderedDate > week.weekOf ? orderStats.lastOrderedDate : week.weekOf,
+        lastOrderedDate: orderStats ? latestOrderedDate(orderStats.lastOrderedDate, week.weekOf) : week.weekOf,
         timesOrdered: (orderStats?.timesOrdered ?? 0) + 1,
       })
 
@@ -380,13 +389,13 @@ function App() {
 
       if (!orderStats) return mergedMeal
 
-      const status: MealStatus = mergedMeal.status === 'doNotOrderAgain' ? mergedMeal.status : 'ordered'
+      const status: MealStatus = mergedMeal.status === 'favorite' || mergedMeal.status === 'doNotOrderAgain' ? mergedMeal.status : 'ordered'
 
       return {
         ...mergedMeal,
         status,
         recommendedBecause: 'Ordered before and available in the Natanya menu.',
-        lastOrderedDate: mergedMeal.lastOrderedDate > orderStats.lastOrderedDate ? mergedMeal.lastOrderedDate : orderStats.lastOrderedDate,
+        lastOrderedDate: latestOrderedDate(mergedMeal.lastOrderedDate, orderStats.lastOrderedDate),
         timesOrdered: Math.max(mergedMeal.timesOrdered, orderStats.timesOrdered),
       }
     })

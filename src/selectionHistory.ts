@@ -44,7 +44,7 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
         "comments": ""
       },
       {
-        "description": "Bson lettuce cups with white rice",
+        "description": "Korean beef or bison lettuce cups with white rice",
         "davidQuantity": 2,
         "lynnQuantity": 2,
         "notesForChef": "",
@@ -686,7 +686,7 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
         "comments": ""
       },
       {
-        "description": "Bson lettuce cups with white rice",
+        "description": "Korean beef or bison lettuce cups with white rice",
         "davidQuantity": 2,
         "lynnQuantity": 3,
         "notesForChef": "",
