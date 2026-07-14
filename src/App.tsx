@@ -548,6 +548,14 @@ function App() {
     return `${mealId}-${author}-${weekOf}`
   }
 
+  function historySelectionKey(selection: WeeklySelection['selections'][number]) {
+    return `${selection.description}-${selection.mealId ?? ''}`
+  }
+
+  function missingRatingAuthors(meal: Meal, weekOf: string) {
+    return (['David', 'Lynn'] as const).filter((author) => ratingForMealWeek(meal, author, weekOf) === null)
+  }
+
   function draftRatingValue(meal: Meal, author: 'David' | 'Lynn', weekOf: string, savedValue: number | null) {
     const key = ratingDraftKey(meal.id, author, weekOf)
     return Object.prototype.hasOwnProperty.call(ratingDrafts, key) ? ratingDrafts[key] : savedValue
@@ -1129,31 +1137,40 @@ function App() {
     return value === null ? 'Not rated' : `${value}/5`
   }
 
-  function commentsByAuthorForEmail(meal: Meal, author: 'David' | 'Lynn', weekOf: string) {
+  function commentsByAuthorForEmail(meal: Meal, author: 'David' | 'Lynn', weekOf: string, selectionKey: string) {
     const comments = commentsForMeal(meal)
       .filter((comment) => comment.date === weekOf)
       .filter((comment) => comment.author === author)
       .map((comment) => comment.text.trim())
       .filter(Boolean)
+    const draft = commentDrafts[selectionKey]
+    const draftComment = draft?.author === author ? draft.text.trim() : ''
+    const allComments = draftComment ? [...comments, draftComment] : comments
 
-    return comments.length > 0 ? comments.join('; ') : 'No comment yet'
+    return allComments.length > 0 ? allComments.join('; ') : 'No comment yet'
   }
 
   function buildChefFeedbackEmail(week: WeeklySelection) {
     const mealLines = week.selections.map((selection) => {
       const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(selection.description))
       const mealName = meal?.description ?? selection.description
+      const selectionKey = historySelectionKey(selection)
+      const chefNoteLine = selection.notesForChef.trim() ? `Notes for Chef: ${selection.notesForChef.trim()}` : 'Notes for Chef: No notes'
 
       if (!meal) {
-        return `${mealName}\nDavid rating: Not rated\nDavid comment: No comment yet\nLynn rating: Not rated\nLynn comment: No comment yet`
+        return `${mealName}\n${chefNoteLine}\nDavid rating: Not rated\nDavid comment: No comment yet\nLynn rating: Not rated\nLynn comment: No comment yet`
       }
+
+      const davidRating = draftRatingValue(meal, 'David', week.weekOf, ratingForMealWeek(meal, 'David', week.weekOf))
+      const lynnRating = draftRatingValue(meal, 'Lynn', week.weekOf, ratingForMealWeek(meal, 'Lynn', week.weekOf))
 
       return [
         mealName,
-        `David rating: ${formatRatingForEmail(ratingForMealWeek(meal, 'David', week.weekOf))}`,
-        `David comment: ${commentsByAuthorForEmail(meal, 'David', week.weekOf)}`,
-        `Lynn rating: ${formatRatingForEmail(ratingForMealWeek(meal, 'Lynn', week.weekOf))}`,
-        `Lynn comment: ${commentsByAuthorForEmail(meal, 'Lynn', week.weekOf)}`,
+        chefNoteLine,
+        `David rating: ${formatRatingForEmail(davidRating)}`,
+        `David comment: ${commentsByAuthorForEmail(meal, 'David', week.weekOf, selectionKey)}`,
+        `Lynn rating: ${formatRatingForEmail(lynnRating)}`,
+        `Lynn comment: ${commentsByAuthorForEmail(meal, 'Lynn', week.weekOf, selectionKey)}`,
       ].join('\n')
     })
 
@@ -1261,7 +1278,7 @@ function App() {
   }
 
   function renderHistorySelection(selection: WeeklySelection['selections'][number], weekOf: string, showFeedbackTools = false) {
-    const selectionKey = `${selection.description}-${selection.mealId ?? ''}`
+    const selectionKey = historySelectionKey(selection)
     const editedDescription = storedData.unmatchedEdits[selectionKey] ?? selection.description
     const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(editedDescription))
     const draft = commentDrafts[selectionKey] ?? { author: 'Lynn', text: '' }
@@ -1269,9 +1286,15 @@ function App() {
     const orderedDates = meal ? orderedDatesForMeal(meal) : []
     const avgRating = meal ? averageRatingForMeal(meal) : null
     const ratingCount = meal ? ratingCountForMeal(meal) : 0
+    const missingAuthors = meal ? missingRatingAuthors(meal, weekOf) : []
+    const cardClassName = [
+      'meal-card history-card',
+      showFeedbackTools ? 'active-rating-card' : '',
+      missingAuthors.length > 0 ? 'needs-rating-card' : '',
+    ].filter(Boolean).join(' ')
 
     return (
-      <article className={showFeedbackTools ? 'meal-card history-card active-rating-card' : 'meal-card history-card'} key={selectionKey}>
+      <article className={cardClassName} key={selectionKey}>
         <div className="meal-card-header">
           <div className="meal-title-static">
             <span className="checkbox checked-box" aria-hidden="true">✓</span>
@@ -1338,6 +1361,7 @@ function App() {
                 {showFeedbackTools && renderRatingControl(meal, 'David', weekOf, ratingForMealWeek(meal, 'David', weekOf))}
                 {showFeedbackTools && renderRatingControl(meal, 'Lynn', weekOf, ratingForMealWeek(meal, 'Lynn', weekOf))}
                 {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
+                {missingAuthors.length > 0 && <span className="needs-rating-pill">Needs rating: {missingAuthors.join(' and ')}</span>}
                 <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
                 <span>Times ordered: {meal.timesOrdered}</span>
                 {orderedDates.length > 1 && <span>Ordered dates: {orderedDates.map(formatLastOrdered).join(', ')}</span>}
@@ -1389,16 +1413,6 @@ function App() {
   }
 
   if (screen === 'history') {
-    const unratedSelections = allSubmittedWeeks.flatMap((week) =>
-      week.selections
-        .filter((selection) => {
-          const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(selection.description))
-          if (!meal) return false
-          return ratingForMealWeek(meal, 'David', week.weekOf) === null || ratingForMealWeek(meal, 'Lynn', week.weekOf) === null
-        })
-        .map((selection) => ({ selection, weekOf: week.weekOf })),
-    )
-
     return (
       <main className="app-shell">
         <section className="hero-card wide-card selection-card">
@@ -1408,22 +1422,6 @@ function App() {
           </div>
           <h1>Current & previous selections</h1>
           <p className="subtitle">Review submitted weeks, rate meals, add comments, and update meal status.</p>
-          <section className="history-week needs-rating-section">
-            <div className="section-heading">
-              <div>
-                <h2>Meals that need ratings</h2>
-                <p>Ordered meals missing a David or Lynn rating since their cook date.</p>
-              </div>
-              <span className={unratedSelections.length === 0 ? 'complete-pill' : 'open-pill'}>{unratedSelections.length === 0 ? 'All rated' : `${unratedSelections.length} left`}</span>
-            </div>
-            {unratedSelections.length > 0 ? (
-              <div className="history-meals">
-                {unratedSelections.map(({ selection, weekOf }) => renderHistorySelection(selection, weekOf, true))}
-              </div>
-            ) : (
-              <p className="unmatched-note">Everything ordered has a current David and Lynn rating.</p>
-            )}
-          </section>
           <div className="history-list">
             {allSubmittedWeeks.map((week) => {
               const isRatingWeek = activeRatingWeekOf === week.weekOf
