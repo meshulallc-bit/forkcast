@@ -12,6 +12,47 @@ export type ImportedWeeklySelection = {
 
 export const importedWeeklySelections: ImportedWeeklySelection[] = [
   {
+    "weekOf": "2026-07-26",
+    "submittedAt": "2026-07-26",
+    "selections": [
+      {
+        "description": "Chickpea flour pancakes with lemon hummus cottage and cucumbers",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Bison stuffed zucchini boats with marinara and chickpeas",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "42 oz",
+        "comments": ""
+      },
+      {
+        "description": "Chicken with orange caper and tarragon sauce baby potato asparagus",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "36 oz",
+        "comments": ""
+      },
+      {
+        "description": "Thai chicken salad rice bowl",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "Was initially quinoa. 34 oz",
+        "comments": ""
+      },
+      {
+        "description": "Sweet street corn chicken bowls with white rice",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "28 oz",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-07-12",
     "submittedAt": "2026-07-12",
     "selections": [
@@ -481,10 +522,10 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
         "comments": "David thinks chicken is tough"
       },
       {
-        "description": "Thai chicken salad rice bowl (was initially quinoa)",
+        "description": "Thai chicken salad rice bowl",
         "davidQuantity": 2,
         "lynnQuantity": 2,
-        "notesForChef": "",
+        "notesForChef": "Was initially quinoa",
         "comments": "❤️  Make it spicier"
       },
       {
