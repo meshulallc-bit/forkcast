@@ -53,6 +53,47 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
     ]
   },
   {
+    "weekOf": "2026-07-19",
+    "submittedAt": "2026-07-19",
+    "selections": [
+      {
+        "description": "Chicken sausage sweet potato casserole",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Spicy thai fried rice with ground turkey and greens",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Tangy Pecan chicken salad with celery grapes",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Mustard filets bites with horseradish cauliflower and parsnip puree",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Marinated grilled chicken and veggies over farro with basil vinaigrette",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-07-12",
     "submittedAt": "2026-07-12",
     "selections": [
