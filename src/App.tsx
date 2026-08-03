@@ -1021,6 +1021,12 @@ function App() {
     return quantities[meal.id] ?? defaultQuantityForMeal(meal, selectedMeals)
   }
 
+  function weekIncludesMeal(week: WeeklySelection, meal: Meal) {
+    return week.selections.some((selection) => (
+      selection.mealId === meal.id || normalizeDescription(selection.description) === normalizeDescription(meal.description)
+    ))
+  }
+
   function updateQuantity(meal: Meal, person: 'david' | 'lynn', value: number) {
     const currentQty = getQuantity(meal)
     setQuantities((current) => ({
@@ -1045,7 +1051,7 @@ function App() {
 
   const chefEmail = generatedEmail || (selectedWeekOf ? buildChefEmail() : '')
 
-  function approveAndSave() {
+  function saveSelectedWeek() {
     const submittedWeek: WeeklySelection = {
       weekOf: selectedWeekOf,
       submittedAt: toIsoDate(new Date()),
@@ -1062,14 +1068,16 @@ function App() {
       }),
     }
 
+    const existingWeek = allSubmittedWeeks.find((week) => week.weekOf === selectedWeekOf)
     const nextOverrides = { ...storedData.mealOverrides }
     for (const meal of selectedMeals) {
       const status = meal.status === 'favorite' || meal.status === 'doNotOrderAgain' ? meal.status : 'ordered'
+      const alreadyOrderedThisWeek = existingWeek ? weekIncludesMeal(existingWeek, meal) : false
       nextOverrides[meal.id] = {
         ...nextOverrides[meal.id],
         status,
-        lastOrderedDate: selectedWeekOf,
-        timesOrdered: meal.timesOrdered + 1,
+        lastOrderedDate: latestOrderedDate(meal.lastOrderedDate, selectedWeekOf),
+        timesOrdered: alreadyOrderedThisWeek ? meal.timesOrdered : meal.timesOrdered + 1,
       }
     }
 
@@ -1081,18 +1089,24 @@ function App() {
     delete nextSelectionDrafts[selectedWeekOf]
 
     persist({ ...storedData, submittedWeeks, selectionDrafts: nextSelectionDrafts, mealOverrides: nextOverrides })
-    setGeneratedEmail(chefEmail)
+    return buildChefEmail()
+  }
+
+  function approveAndSave() {
+    const emailBody = saveSelectedWeek()
+    setGeneratedEmail(emailBody)
     setApproved(true)
     setChefEmailOpened(false)
-    navigator.clipboard?.writeText(chefEmail).catch(() => undefined)
+    navigator.clipboard?.writeText(emailBody).catch(() => undefined)
+    return emailBody
   }
 
   function openChefEmail() {
-    if (!approved) approveAndSave()
+    const emailBody = approved ? chefEmail : approveAndSave()
     setChefEmailOpened(true)
     const mailto = `mailto:info@uniwellness.life?subject=${encodeURIComponent(
       `Finalized Menu - Week of ${formatWeek(selectedWeekOf)}`,
-    )}&body=${encodeURIComponent(chefEmail)}`
+    )}&body=${encodeURIComponent(emailBody)}`
 
     window.location.href = mailto
   }
