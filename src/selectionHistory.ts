@@ -12,6 +12,47 @@ export type ImportedWeeklySelection = {
 
 export const importedWeeklySelections: ImportedWeeklySelection[] = [
   {
+    "weekOf": "2026-08-02",
+    "submittedAt": "2026-08-02",
+    "selections": [
+      {
+        "description": "Zucchini and parmesan egg cups",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "Like the carrot cups",
+        "comments": ""
+      },
+      {
+        "description": "Thai peanut brown rice noodle salad",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "Vegan or can add a protein. Add chicken for both of us. 34 oz",
+        "comments": ""
+      },
+      {
+        "description": "Chicken or lamb souvlaki with tzatziki and turmeric pistachio rice",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "Heavy on pistachio for David. 36 oz",
+        "comments": ""
+      },
+      {
+        "description": "Marinated Grilled chicken with beet farro salad spiced ginger lime dressing",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "28 oz",
+        "comments": ""
+      },
+      {
+        "description": "Ginger and thai chili chicken skewers w peanut dressing cabbage salad",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "42 oz",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-07-26",
     "submittedAt": "2026-07-26",
     "selections": [
