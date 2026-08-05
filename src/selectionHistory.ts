@@ -23,10 +23,10 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
         "comments": ""
       },
       {
-        "description": "Thai peanut brown rice noodle salad",
+        "description": "Thai peanut brown rice noodle salad ( vegan or can add a protein)",
         "davidQuantity": 2,
         "lynnQuantity": 3,
-        "notesForChef": "Vegan or can add a protein. Add chicken for both of us",
+        "notesForChef": "Add chicken for both of us",
         "comments": ""
       },
       {
