@@ -416,11 +416,14 @@ function App() {
     submittedWeeksByDate.set(week.weekOf, importedWeek ? mergeWeeklySelections(importedWeek, week) : week)
   }
   const allSubmittedWeeks = Array.from(submittedWeeksByDate.values()).sort((a, b) => b.weekOf.localeCompare(a.weekOf))
-  const submittedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
+  const completedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
+  for (const [weekOf, draft] of Object.entries(storedData.selectionDrafts)) {
+    if (draft.selectedMealIds.length === 5) completedWeekSet.add(weekOf)
+  }
   const today = new Date()
   const currentWeekOf = sundayForDate(today)
   const saturdayTargetWeek = today.getDay() === 6 ? toIsoDate(addDays(today, 8)) : null
-  const showSaturdaySelectPrompt = saturdayTargetWeek ? !submittedWeekSet.has(saturdayTargetWeek) : false
+  const showSaturdaySelectPrompt = saturdayTargetWeek ? !completedWeekSet.has(saturdayTargetWeek) : false
   const currentWeekSelection = allSubmittedWeeks.find((week) => week.weekOf === currentWeekOf)
 
   const selectedMeals = selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
@@ -700,7 +703,7 @@ function App() {
 
     while (weeks.length < 3) {
       const iso = toIsoDate(cursor)
-      if (!submittedWeekSet.has(iso)) weeks.push(iso)
+      if (!completedWeekSet.has(iso)) weeks.push(iso)
       cursor = addDays(cursor, 7)
     }
 
@@ -1314,7 +1317,6 @@ function App() {
             <span className="checkbox checked-box" aria-hidden="true">✓</span>
             <div>
               <strong>{meal?.description ?? editedDescription}</strong>
-              <span>D{selection.davidQuantity} / L{selection.lynnQuantity}</span>
             </div>
           </div>
           {meal && (
@@ -1438,7 +1440,8 @@ function App() {
           <p className="subtitle">Review submitted weeks, rate meals, add comments, and update meal status.</p>
           <div className="history-list">
             {allSubmittedWeeks.map((week) => {
-              const isRatingWeek = activeRatingWeekOf === week.weekOf
+              const isSkipped = week.selections.length === 0
+              const isRatingWeek = !isSkipped && activeRatingWeekOf === week.weekOf
               const missingRatings = week.selections.filter((selection) => {
                 const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(selection.description))
                 if (!meal) return false
@@ -1450,9 +1453,9 @@ function App() {
                 <div className="section-heading">
                   <div>
                     <h2>Week of {formatWeekHeading(week.weekOf)}</h2>
-                    <p>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}{missingRatings > 0 ? ` · ${missingRatings} meals need ratings` : ' · All meals rated'}</p>
+                    <p>{isSkipped ? 'Skipped' : <>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}{missingRatings > 0 ? ` · ${missingRatings} meals need ratings` : ' · All meals rated'}</>}</p>
                   </div>
-                  <div className="section-actions">
+                  {!isSkipped && <div className="section-actions">
                     <button type="button" className={isRatingWeek ? 'compact-button' : 'secondary-button compact-button'} onClick={() => setActiveRatingWeekOf(isRatingWeek ? '' : week.weekOf)}>
                       {isRatingWeek ? 'Done rating' : 'Rate meals for this week'}
                     </button>
@@ -1462,7 +1465,7 @@ function App() {
                     <button type="button" className="secondary-button compact-button" onClick={() => startWeekSelection(week.weekOf)}>
                       Re-select week
                     </button>
-                  </div>
+                  </div>}
                 </div>
                 {isRatingWeek && <p className="rating-week-prompt">Rate David and Lynn, add comments for this week, then click Send feedback to chef.</p>}
                 <div className="history-meals">{week.selections.map((selection) => renderHistorySelection(selection, week.weekOf, isRatingWeek))}</div>
@@ -1675,7 +1678,7 @@ function App() {
         <h1 className="sr-only">Forkcast</h1>
         <p className="subtitle">Order. Eat. Rate. Repeat.</p>
 
-        {today.getDay() === 6 && currentWeekSelection && (
+        {today.getDay() === 6 && currentWeekSelection && currentWeekSelection.selections.length > 0 && (
           <div className="reminder-card">
             <strong>Saturday review</strong>
             <span>Review week of {formatWeek(currentWeekSelection.weekOf)} before selecting upcoming meals.</span>

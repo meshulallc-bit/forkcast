@@ -12,6 +12,108 @@ export type ImportedWeeklySelection = {
 
 export const importedWeeklySelections: ImportedWeeklySelection[] = [
   {
+    "weekOf": "2026-09-27",
+    "submittedAt": "2026-09-27",
+    "selections": [
+      {
+        "description": "Prosciutto and spinach egg cups",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Ground turkey and feta rice paper spainkota",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "42 oz",
+        "comments": ""
+      },
+      {
+        "description": "Grilled chicken with zucchini and horseradish salad",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "36 oz",
+        "comments": ""
+      },
+      {
+        "description": "Turkey white bean and pumpkin chilli",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "34 oz",
+        "comments": ""
+      },
+      {
+        "description": "Balsamic marinated chicken cabbage farro salad strawberry jalapeno dressing",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "28 oz",
+        "comments": ""
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-09-13",
+    "submittedAt": "2026-09-13",
+    "selections": []
+  },
+  {
+    "weekOf": "2026-09-06",
+    "submittedAt": "2026-09-06",
+    "selections": []
+  },
+  {
+    "weekOf": "2026-08-30",
+    "submittedAt": "2026-08-30",
+    "selections": []
+  },
+  {
+    "weekOf": "2026-08-23",
+    "submittedAt": "2026-08-23",
+    "selections": []
+  },
+  {
+    "weekOf": "2026-08-16",
+    "submittedAt": "2026-08-16",
+    "selections": [
+      {
+        "description": "Everything bagel cottage cheese bowls ( turkey bacon eggs cucumber radish)",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Cajun chicken bake with white beans",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Garlic and pepper steak with bone broth farro",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "Please get the leanest, least fatty filet possible",
+        "comments": ""
+      },
+      {
+        "description": "Grilled chicken with curry brown rice noodle salad",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Cabbage cob salad with grilled chicken",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-08-02",
     "submittedAt": "2026-08-02",
     "selections": [
