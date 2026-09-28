@@ -53,6 +53,47 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
     ]
   },
   {
+    "weekOf": "2026-09-20",
+    "submittedAt": "2026-09-20",
+    "selections": [
+      {
+        "description": "Greek yogurt bowls fresh fruit and nuts with light granola",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Baked red curry chicken cabbage cups with white rice",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Balsamic Grilled chicken with beet and pineapple salad",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Garlic butter filet bites with rosemary potatoes and asparagus",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Miso glazed ginger chicken charred broccolini and sweet potato mash",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-09-13",
     "submittedAt": "2026-09-13",
     "selections": []
