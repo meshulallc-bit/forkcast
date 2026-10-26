@@ -60,6 +60,8 @@ type StoredAppData = {
   deletedCommentIds: string[]
   mealRatings: Record<string, RatingEntry[]>
   unmatchedEdits: Record<string, string>
+  completedRatingWeeks: string[]
+  sentFeedbackWeeks: string[]
 }
 
 const storageKey = 'forkcast-v2'
@@ -84,7 +86,7 @@ const statusLabels: Record<MealStatus, string> = {
 }
 
 function loadStoredData(): StoredAppData {
-  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, editedComments: {}, deletedCommentIds: [], mealRatings: {}, unmatchedEdits: {} }
+  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, editedComments: {}, deletedCommentIds: [], mealRatings: {}, unmatchedEdits: {}, completedRatingWeeks: [], sentFeedbackWeeks: [] }
 
   try {
     const raw = localStorage.getItem(storageKey)
@@ -101,6 +103,8 @@ function loadStoredData(): StoredAppData {
       deletedCommentIds: parsed.deletedCommentIds ?? [],
       mealRatings: parsed.mealRatings ?? {},
       unmatchedEdits: parsed.unmatchedEdits ?? {},
+      completedRatingWeeks: parsed.completedRatingWeeks ?? [],
+      sentFeedbackWeeks: parsed.sentFeedbackWeeks ?? [],
     }
   } catch {
     return fallback
@@ -1200,7 +1204,19 @@ function App() {
       `Meal Feedback - Week of ${formatWeek(week.weekOf)}`,
     )}&body=${encodeURIComponent(body)}`
 
+    persist({
+      ...storedData,
+      sentFeedbackWeeks: Array.from(new Set([...storedData.sentFeedbackWeeks, week.weekOf])),
+    })
     window.location.href = mailto
+  }
+
+  function finishRatingWeek(weekOf: string) {
+    persist({
+      ...storedData,
+      completedRatingWeeks: Array.from(new Set([...storedData.completedRatingWeeks, weekOf])),
+    })
+    setActiveRatingWeekOf('')
   }
 
   function renderMealCard(meal: Meal) {
@@ -1441,7 +1457,9 @@ function App() {
           <div className="history-list">
             {allSubmittedWeeks.map((week) => {
               const isSkipped = week.selections.length === 0
-              const isRatingWeek = !isSkipped && activeRatingWeekOf === week.weekOf
+              const ratingsCompleted = storedData.completedRatingWeeks.includes(week.weekOf)
+              const feedbackSent = storedData.sentFeedbackWeeks.includes(week.weekOf)
+              const isRatingWeek = !isSkipped && !ratingsCompleted && activeRatingWeekOf === week.weekOf
               const missingRatings = week.selections.filter((selection) => {
                 const meal = selection.mealId ? mealById.get(selection.mealId) : mealByDescription.get(normalizeDescription(selection.description))
                 if (!meal) return false
@@ -1453,21 +1471,30 @@ function App() {
                 <div className="section-heading">
                   <div>
                     <h2>Week of {formatWeekHeading(week.weekOf)}</h2>
-                    <p>{isSkipped ? 'Skipped' : <>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}{missingRatings > 0 ? ` · ${missingRatings} meals need ratings` : ' · All meals rated'}</>}</p>
+                    <p>{isSkipped ? 'Skipped' : <>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}{feedbackSent ? ' · Feedback sent' : ratingsCompleted ? ' · Ratings completed' : missingRatings > 0 ? ` · ${missingRatings} meals need ratings` : ' · All meals rated'}</>}</p>
                   </div>
                   {!isSkipped && <div className="section-actions">
-                    <button type="button" className={isRatingWeek ? 'compact-button' : 'secondary-button compact-button'} onClick={() => setActiveRatingWeekOf(isRatingWeek ? '' : week.weekOf)}>
-                      {isRatingWeek ? 'Done rating' : 'Rate meals for this week'}
-                    </button>
-                    <button type="button" className="secondary-button compact-button" onClick={() => openChefFeedbackEmail(week)}>
-                      Send feedback to chef
-                    </button>
+                    {!ratingsCompleted && (
+                      <button
+                        type="button"
+                        className={isRatingWeek ? 'compact-button' : 'secondary-button compact-button'}
+                        disabled={isRatingWeek && missingRatings > 0}
+                        onClick={() => isRatingWeek ? finishRatingWeek(week.weekOf) : setActiveRatingWeekOf(week.weekOf)}
+                      >
+                        {isRatingWeek ? 'Done rating' : 'Rate meals for this week'}
+                      </button>
+                    )}
+                    {ratingsCompleted && !feedbackSent && (
+                      <button type="button" className="secondary-button compact-button" onClick={() => openChefFeedbackEmail(week)}>
+                        Send email to chef
+                      </button>
+                    )}
                     <button type="button" className="secondary-button compact-button" onClick={() => startWeekSelection(week.weekOf)}>
                       Re-select week
                     </button>
                   </div>}
                 </div>
-                {isRatingWeek && <p className="rating-week-prompt">Rate David and Lynn, add comments for this week, then click Send feedback to chef.</p>}
+                {isRatingWeek && <p className="rating-week-prompt">Rate David and Lynn, save every rating, then click Done rating.</p>}
                 <div className="history-meals">{week.selections.map((selection) => renderHistorySelection(selection, week.weekOf, isRatingWeek))}</div>
               </section>
               )
