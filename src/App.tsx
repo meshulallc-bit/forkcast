@@ -9,6 +9,8 @@ type Quantities = Record<string, { david: number; lynn: number }>
 type ChefNotes = Record<string, string>
 type MealOverrides = Record<string, Partial<Meal>>
 type Screen = 'home' | 'pick' | 'review' | 'history'
+type MenuView = 'block' | 'table'
+type TableSortKey = 'description' | 'status' | 'category' | 'lastOrderedDate' | 'timesOrdered' | 'feedback' | 'chefNotes' | 'lynnRating' | 'davidRating'
 type NewMealDraft = { category: MealCategory; description: string }
 type ImportMealDraft = { text: string }
 type ImportMealEntry = { description: string; category: MealCategory }
@@ -346,6 +348,11 @@ function App() {
   const [starFilter, setStarFilter] = useState(0)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statusFilter, setStatusFilter] = useState<MealStatus | 'all'>('all')
+  const [menuView, setMenuView] = useState<MenuView>(() => (
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches ? 'table' : 'block'
+  ))
+  const [tableSort, setTableSort] = useState<{ key: TableSortKey; direction: 'asc' | 'desc' }>({ key: 'description', direction: 'asc' })
+  const [selectionTrayOpen, setSelectionTrayOpen] = useState(true)
 
   const baseAndCustomMeals = [...baseMeals, ...storedData.customMeals]
     .filter((meal) => !storedData.deletedMealIds.includes(meal.id))
@@ -426,7 +433,11 @@ function App() {
   const allSubmittedWeeks = Array.from(submittedWeeksByDate.values()).sort((a, b) => b.weekOf.localeCompare(a.weekOf))
   const completedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
   for (const [weekOf, draft] of Object.entries(storedData.selectionDrafts)) {
-    if (draft.selectedMealIds.length === 5) completedWeekSet.add(weekOf)
+    const draftMeals = draft.selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
+    const draftIsComplete = draft.selectedMealIds.length === 5
+      && draftMeals.filter((meal) => meal.category === 'breakfast').length === 1
+      && draftMeals.filter((meal) => meal.category !== 'breakfast').length === 4
+    if (draftIsComplete) completedWeekSet.add(weekOf)
   }
   const today = new Date()
   const currentWeekOf = sundayForDate(today)
@@ -435,6 +446,9 @@ function App() {
   const currentWeekSelection = allSubmittedWeeks.find((week) => week.weekOf === currentWeekOf)
 
   const selectedMeals = selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
+  const selectedBreakfastCount = selectedMeals.filter((meal) => meal.category === 'breakfast').length
+  const selectedMainCount = selectedMeals.filter((meal) => meal.category !== 'breakfast').length
+  const selectionIsComplete = selectedMealIds.length === 5 && selectedBreakfastCount === 1 && selectedMainCount === 4
 
   useEffect(() => {
     if (!selectedWeekOf || (screen !== 'pick' && screen !== 'review')) return
@@ -502,6 +516,37 @@ function App() {
 
   function latestCommentForMeal(meal: Meal) {
     return commentsForMeal(meal)[0]
+  }
+
+  function feedbackNotesForMeal(meal: Meal) {
+    const latestComment = latestCommentForMeal(meal)
+    const notes: { author: string; text: string; date?: string }[] = []
+
+    if (latestComment) notes.push({ author: latestComment.author, text: latestComment.text, date: latestComment.date })
+    if (meal.lynnNote?.trim()) notes.push({ author: 'Lynn', text: meal.lynnNote.trim() })
+    if (meal.davidNote?.trim()) notes.push({ author: 'David', text: meal.davidNote.trim() })
+
+    return notes.filter((note, index) => notes.findIndex((item) => (
+      item.author === note.author && normalizeDescription(item.text) === normalizeDescription(note.text)
+    )) === index)
+  }
+
+  function latestChefNoteForMeal(meal: Meal) {
+    for (const week of allSubmittedWeeks) {
+      const selection = week.selections.find((item) => (
+        item.mealId === meal.id || normalizeDescription(item.description) === normalizeDescription(meal.description)
+      ))
+      if (selection?.notesForChef.trim()) return selection.notesForChef.trim()
+    }
+    return ''
+  }
+
+  function latestRatingForMeal(meal: Meal, author: 'David' | 'Lynn') {
+    const latestDatedRating = ratingsForMeal(meal)
+      .filter((rating) => rating.author === author)
+      .sort((a, b) => b.weekOf.localeCompare(a.weekOf))[0]
+
+    return latestDatedRating?.rating ?? (author === 'David' ? meal.davidRating : meal.lynnRating)
   }
 
   function ratingsForMeal(meal: Meal) {
@@ -995,9 +1040,9 @@ function App() {
   }
 
   function visibleMealsForCategory(category: MealCategory) {
-    const searchTerm = optionMode === 'all' ? normalizeDescription(mealSearch) : ''
+    const searchTerm = optionMode === 'all' || menuView === 'table' ? normalizeDescription(mealSearch) : ''
     const categoryMeals = sortedMealsForCategory(category).filter((meal) =>
-      (!searchTerm || normalizeDescription(meal.description).includes(searchTerm))
+      (!searchTerm || (menuView === 'table' ? tableSearchText(meal).includes(searchTerm) : normalizeDescription(meal.description).includes(searchTerm)))
       && (optionMode !== 'all' || starFilter === 0 || (averageRatingForMeal(meal) ?? 0) >= starFilter)
       && (optionMode !== 'all' || !favoritesOnly || meal.status === 'favorite')
       && (optionMode !== 'all' || statusFilter === 'all' || meal.status === statusFilter),
@@ -1005,6 +1050,67 @@ function App() {
     if (optionMode === 'all') return categoryMeals
     if (optionMode === 'more') return categoryMeals.slice(0, 12)
     return categoryMeals.slice(0, 4)
+  }
+
+  function tableSearchText(meal: Meal) {
+    const feedbackNotes = feedbackNotesForMeal(meal)
+    const chefNote = chefNotes[meal.id]?.trim() || latestChefNoteForMeal(meal)
+    const lynnRating = latestRatingForMeal(meal, 'Lynn')
+    const davidRating = latestRatingForMeal(meal, 'David')
+
+    return normalizeDescription([
+      meal.description,
+      statusLabels[meal.status],
+      categoryLabels[meal.category],
+      meal.lastOrderedDate,
+      formatLastOrdered(meal.lastOrderedDate),
+      String(meal.timesOrdered),
+      feedbackNotes.length > 0 ? feedbackNotes.map((note) => `${note.author} ${note.text}`).join(' ') : 'No feedback',
+      chefNote || 'No notes',
+      lynnRating === null ? '' : `${lynnRating} ${lynnRating}/5`,
+      davidRating === null ? '' : `${davidRating} ${davidRating}/5`,
+      recommendationReason(meal),
+    ].join(' '))
+  }
+
+  function tableSortValue(meal: Meal, key: TableSortKey): string | number {
+    if (key === 'description') return normalizeDescription(meal.description)
+    if (key === 'status') return statusLabels[meal.status]
+    if (key === 'category') return categoryLabels[meal.category]
+    if (key === 'lastOrderedDate') return meal.lastOrderedDate.match(/^\d{4}-\d{2}-\d{2}$/) ? meal.lastOrderedDate : ''
+    if (key === 'timesOrdered') return meal.timesOrdered
+    if (key === 'feedback') return normalizeDescription(feedbackNotesForMeal(meal).map((note) => note.text).join(' '))
+    if (key === 'chefNotes') return normalizeDescription(chefNotes[meal.id]?.trim() || latestChefNoteForMeal(meal))
+    if (key === 'lynnRating') return latestRatingForMeal(meal, 'Lynn') ?? -1
+    return latestRatingForMeal(meal, 'David') ?? -1
+  }
+
+  function sortedTableMeals(tableMeals: Meal[]) {
+    const direction = tableSort.direction === 'asc' ? 1 : -1
+
+    return [...tableMeals].sort((a, b) => {
+      const aValue = tableSortValue(a, tableSort.key)
+      const bValue = tableSortValue(b, tableSort.key)
+      const comparison = typeof aValue === 'number' && typeof bValue === 'number'
+        ? aValue - bValue
+        : String(aValue).localeCompare(String(bValue))
+
+      return comparison === 0 ? a.description.localeCompare(b.description) : comparison * direction
+    })
+  }
+
+  function updateTableSort(key: TableSortKey) {
+    setTableSort((current) => current.key === key
+      ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      : { key, direction: 'asc' })
+  }
+
+  function selectionDisabled(meal: Meal) {
+    if (selectedMealIds.includes(meal.id)) return false
+    if (selectedMealIds.length >= 5) return true
+    if (meal.category === 'breakfast') return selectedCount(meals, selectedMealIds, 'breakfast') >= 1
+
+    return selectedMeals.filter((selectedMeal) => selectedMeal.category !== 'breakfast').length >= 4
   }
 
   function toggleMeal(meal: Meal) {
@@ -1024,7 +1130,7 @@ function App() {
       return
     }
 
-    if (selectedCount(meals, selectedMealIds, meal.category) >= categoryTargets[meal.category]) return
+    if (selectionDisabled(meal)) return
     setSelectedMealIds((current) => [...current, meal.id])
   }
 
@@ -1063,6 +1169,8 @@ function App() {
   const chefEmail = generatedEmail || (selectedWeekOf ? buildChefEmail() : '')
 
   function saveSelectedWeek() {
+    if (!selectionIsComplete) return ''
+
     const submittedWeek: WeeklySelection = {
       weekOf: selectedWeekOf,
       submittedAt: toIsoDate(new Date()),
@@ -1107,6 +1215,7 @@ function App() {
 
   function approveAndSave() {
     const emailBody = saveSelectedWeek()
+    if (!emailBody) return ''
     setGeneratedEmail(emailBody)
     setApproved(true)
     setChefEmailOpened(false)
@@ -1116,6 +1225,7 @@ function App() {
 
   function openChefEmail() {
     const emailBody = approved ? chefEmail : approveAndSave()
+    if (!emailBody) return
     setChefEmailOpened(true)
     const mailto = `mailto:info@uniwellness.life?subject=${encodeURIComponent(
       `Finalized Menu - Week of ${formatWeek(selectedWeekOf)}`,
@@ -1227,8 +1337,7 @@ function App() {
 
   function renderMealCard(meal: Meal) {
     const selected = selectedMealIds.includes(meal.id)
-    const categorySelectedCount = selectedCount(meals, selectedMealIds, meal.category)
-    const disabled = categorySelectedCount >= categoryTargets[meal.category] && !selected
+    const disabled = selectionDisabled(meal)
     const latestComment = latestCommentForMeal(meal)
     const showRecommendation = optionMode !== 'all'
     const isEditing = editingMealIds.includes(meal.id)
@@ -1280,7 +1389,7 @@ function App() {
               </label>
               <label>
                 Category
-                <select value={meal.category} onChange={(event) => updateMealCard(meal, { category: event.target.value as MealCategory })}>
+                <select value={meal.category} disabled={selected} onChange={(event) => updateMealCard(meal, { category: event.target.value as MealCategory })} title={selected ? 'Remove this meal from the selection before changing its category.' : undefined}>
                   {(['breakfast', 'lunchDinner', 'lowCalorie'] as MealCategory[]).map((category) => (
                     <option value={category} key={category}>{categoryLabels[category]}</option>
                   ))}
@@ -1321,6 +1430,111 @@ function App() {
           </button>
         </div>
       </article>
+    )
+  }
+
+  function renderSortableTableHeader(label: string, key: TableSortKey) {
+    const isActive = tableSort.key === key
+
+    return (
+      <th aria-sort={isActive ? (tableSort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+        <button type="button" className="table-sort-button" onClick={() => updateTableSort(key)}>
+          {label}<span aria-hidden="true">{isActive ? (tableSort.direction === 'asc' ? ' ↑' : ' ↓') : ' ↕'}</span>
+        </button>
+      </th>
+    )
+  }
+
+  function renderMealTableRow(meal: Meal) {
+    const selected = selectedMealIds.includes(meal.id)
+    const disabled = selectionDisabled(meal)
+    const feedbackNotes = feedbackNotesForMeal(meal)
+    const latestChefNote = latestChefNoteForMeal(meal)
+    const lynnRating = latestRatingForMeal(meal, 'Lynn')
+    const davidRating = latestRatingForMeal(meal, 'David')
+    const isEditing = editingMealIds.includes(meal.id)
+
+    return (
+      <tr className={selected ? 'selected-table-row' : ''} key={meal.id}>
+        <td className="select-column">
+          <input
+            type="checkbox"
+            checked={selected}
+            disabled={disabled}
+            onChange={() => toggleMeal(meal)}
+            aria-label={`${selected ? 'Remove' : 'Select'} ${meal.description}`}
+          />
+        </td>
+        <td className="meal-name-column">
+          {isEditing ? (
+            <input value={meal.description} onChange={(event) => updateMealCard(meal, { description: event.target.value })} aria-label="Meal name" />
+          ) : (
+            <strong>{meal.description}</strong>
+          )}
+          {optionMode !== 'all' && <small>{recommendationReason(meal)}</small>}
+        </td>
+        <td>
+          <select value={meal.status} onChange={(event) => updateMealCard(meal, { status: event.target.value as MealStatus })} aria-label={`Status for ${meal.description}`}>
+            {(['notOrdered', 'ordered', 'favorite', 'doNotOrderAgain'] as MealStatus[]).map((status) => (
+              <option value={status} key={status}>{statusLabels[status]}</option>
+            ))}
+          </select>
+        </td>
+        <td>
+          {isEditing ? (
+            <select value={meal.category} disabled={selected} onChange={(event) => updateMealCard(meal, { category: event.target.value as MealCategory })} aria-label={`Category for ${meal.description}`} title={selected ? 'Remove this meal from the selection before changing its category.' : undefined}>
+              {(['breakfast', 'lunchDinner', 'lowCalorie'] as MealCategory[]).map((category) => (
+                <option value={category} key={category}>{categoryLabels[category]}</option>
+              ))}
+            </select>
+          ) : categoryLabels[meal.category]}
+        </td>
+        <td>{formatLastOrdered(meal.lastOrderedDate)}</td>
+        <td className="numeric-table-cell">{meal.timesOrdered}</td>
+        <td className="feedback-column">
+          {feedbackNotes.length > 0 ? (
+            <div className="table-note-list">
+              {feedbackNotes.map((note) => (
+                <div key={`${note.author}-${note.text}`}>
+                  <span>{note.text}</span>
+                  <small>{note.author}{note.date ? ` · ${formatLastOrdered(note.date)}` : ''}</small>
+                </div>
+              ))}
+            </div>
+          ) : <span className="empty-table-value">No feedback</span>}
+        </td>
+        <td className="chef-notes-column">
+          {selected ? (
+            <textarea
+              value={chefNotes[meal.id] ?? ''}
+              onChange={(event) => setChefNotes((current) => ({ ...current, [meal.id]: event.target.value }))}
+              placeholder="Optional note"
+              aria-label={`Notes for Chef for ${meal.description}`}
+            />
+          ) : latestChefNote ? (
+            <>
+              <span>{latestChefNote}</span>
+              <small>Most recent saved note</small>
+            </>
+          ) : <span className="empty-table-value">Select meal to add</span>}
+          {selected && latestChefNote && !chefNotes[meal.id]?.trim() && <small>Previous note: {latestChefNote}</small>}
+        </td>
+        <td className="rating-table-cell">{lynnRating === null ? '—' : `${lynnRating}/5`}</td>
+        <td className="rating-table-cell">{davidRating === null ? '—' : `${davidRating}/5`}</td>
+        <td className="table-actions-column">
+          <button
+            type="button"
+            className={isEditing ? 'icon-action-button active-icon-action' : 'icon-action-button'}
+            onClick={() => setEditingMealIds((current) => current.includes(meal.id) ? current.filter((mealId) => mealId !== meal.id) : [...current, meal.id])}
+            aria-label={`${isEditing ? 'Close editor for' : 'Edit'} ${meal.description}`}
+          >
+            ✎
+          </button>
+          <button type="button" className="icon-action-button delete-meal-button" onClick={() => deleteMeal(meal)} aria-label={`Delete ${meal.description}`}>
+            🗑
+          </button>
+        </td>
+      </tr>
     )
   }
 
@@ -1587,15 +1801,19 @@ function App() {
   }
 
   if (screen === 'pick') {
+    const menuCategories: MealCategory[] = ['breakfast', 'lunchDinner', 'lowCalorie']
+    const tableMeals = sortedTableMeals(menuCategories.flatMap((category) => visibleMealsForCategory(category)))
+    const mainSelectedCount = selectedMeals.filter((meal) => meal.category !== 'breakfast').length
+
     return (
       <main className="app-shell">
-        <section className="hero-card wide-card">
+        <section className={menuView === 'table' ? 'hero-card wide-card table-layout-card' : 'hero-card wide-card'}>
           <div className="page-topline">
             <p className="eyebrow">Forkcast</p>
             <button type="button" className="secondary-button compact-button" onClick={() => setScreen('home')}>Home</button>
           </div>
           <h1>Selecting meals for {formatWeek(selectedWeekOf)}</h1>
-          <p className="subtitle">Choose one breakfast, two lunch / dinner meals, and two low calorie meals.</p>
+          <p className="subtitle">Choose one breakfast and four main meals in any mix of lunch / dinner and low calorie options.</p>
           <div className="skip-week-action">
             <button type="button" className="secondary-button" onClick={skipWeekAndNotifyChef}>Skip week and notify chef</button>
           </div>
@@ -1603,6 +1821,11 @@ function App() {
             <button type="button" className={optionMode === 'recommended' ? 'control-active' : 'control-button'} onClick={() => { setOptionMode('recommended'); setShowAddMeal(false) }}>Recommended</button>
             <button type="button" className={optionMode === 'more' ? 'control-active' : 'control-button'} onClick={() => { setOptionMode('more'); setShowAddMeal(false) }}>More options</button>
             <button type="button" className={optionMode === 'all' ? 'control-active' : 'control-button'} onClick={() => { setOptionMode('all'); setShowAddMeal(false) }}>All options</button>
+          </div>
+          <div className="view-toggle" aria-label="Menu layout">
+            <span>View</span>
+            <button type="button" className={menuView === 'table' ? 'control-active' : 'control-button'} onClick={() => setMenuView('table')} aria-pressed={menuView === 'table'}>Table</button>
+            <button type="button" className={menuView === 'block' ? 'control-active' : 'control-button'} onClick={() => setMenuView('block')} aria-pressed={menuView === 'block'}>Blocks</button>
           </div>
           {optionMode === 'all' && showAddMeal && (
             <section className="add-meal-panel" aria-label="Add meal card">
@@ -1641,20 +1864,24 @@ function App() {
               </div>
             </section>
           )}
+          {(optionMode === 'all' || menuView === 'table') && (
+            <label className="meal-search">
+              {menuView === 'table' ? 'Search all table columns' : 'Search meals'}
+              <input
+                value={mealSearch}
+                onChange={(event) => setMealSearch(event.target.value)}
+                placeholder={menuView === 'table' ? 'Search meals, status, category, notes, or ratings' : 'Start typing a meal name'}
+                list="meal-search-options"
+              />
+            </label>
+          )}
+          {(optionMode === 'all' || menuView === 'table') && (
+            <datalist id="meal-search-options">
+              {meals.map((meal) => <option value={meal.description} key={meal.id} />)}
+            </datalist>
+          )}
           {optionMode === 'all' && (
             <>
-              <label className="meal-search">
-                Search meals
-                <input
-                  value={mealSearch}
-                  onChange={(event) => setMealSearch(event.target.value)}
-                  placeholder="Start typing a meal name"
-                  list="meal-search-options"
-                />
-              </label>
-              <datalist id="meal-search-options">
-                {meals.map((meal) => <option value={meal.description} key={meal.id} />)}
-              </datalist>
               <div className="meal-filter-controls" aria-label="Meal filters">
                 <label>
                   Stars
@@ -1679,34 +1906,97 @@ function App() {
                   Favorites only
                 </label>
               </div>
-              <nav className="category-tabs" aria-label="Meal category shortcuts">
-                {(['breakfast', 'lunchDinner', 'lowCalorie'] as MealCategory[]).map((category) => (
+              {menuView === 'block' && <nav className="category-tabs" aria-label="Meal category shortcuts">
+                {menuCategories.map((category) => (
                   <a href={`#${category}-section`} key={category}>{categoryLabels[category].replace(' / ', '/')}</a>
                 ))}
-              </nav>
+              </nav>}
             </>
           )}
-          {(['breakfast', 'lunchDinner', 'lowCalorie'] as MealCategory[]).map((category) => {
-            const count = selectedCount(meals, selectedMealIds, category)
-            const target = categoryTargets[category]
-            const visibleMeals = visibleMealsForCategory(category)
-            return (
-              <section className="meal-section" id={`${category}-section`} key={category}>
-                <div className="section-heading">
-                  <div>
-                    <h2>{categoryLabels[category]}</h2>
-                    <p>Choose {target}. Selected {count} of {target}. Showing {visibleMeals.length} of {meals.filter((meal) => meal.category === category).length} menu options.</p>
+          {menuView === 'block' ? menuCategories.map((category) => {
+              const count = selectedCount(meals, selectedMealIds, category)
+              const target = categoryTargets[category]
+              const visibleMeals = visibleMealsForCategory(category)
+              const categoryComplete = category === 'breakfast' ? count === 1 : mainSelectedCount === 4
+              const slotsLeft = category === 'breakfast' ? 1 - count : 4 - mainSelectedCount
+              return (
+                <section className="meal-section" id={`${category}-section`} key={category}>
+                  <div className="section-heading">
+                    <div>
+                      <h2>{categoryLabels[category]}</h2>
+                      <p>{category === 'breakfast' ? `Choose 1. Selected ${count} of 1.` : `Recommended ${target}. Selected ${count} here and ${mainSelectedCount} of 4 main meals total.`} Showing {visibleMeals.length} of {meals.filter((meal) => meal.category === category).length} menu options.</p>
+                    </div>
+                    <span className={categoryComplete ? 'complete-pill' : 'open-pill'}>{categoryComplete ? 'Complete' : `${slotsLeft} ${category === 'breakfast' ? 'breakfast' : 'main'} left`}</span>
                   </div>
-                  <span className={count === target ? 'complete-pill' : 'open-pill'}>{count === target ? 'Complete' : `${target - count} left`}</span>
+                  <div className="meal-list">{visibleMeals.map(renderMealCard)}</div>
+                </section>
+              )
+            }) : (
+              <section className="menu-table-section" aria-label="Meal options table">
+                <div className="table-selection-summary">
+                  <span className={selectedCount(meals, selectedMealIds, 'breakfast') === 1 ? 'complete-pill' : 'open-pill'}>Breakfast: {selectedCount(meals, selectedMealIds, 'breakfast')}/1</span>
+                  <span className="open-pill">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</span>
+                  <span className="open-pill">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</span>
+                  <span className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'}>Main meals: {mainSelectedCount}/4</span>
+                  <span className="table-result-count">{tableMeals.length} meals shown</span>
                 </div>
-                <div className="meal-list">{visibleMeals.map(renderMealCard)}</div>
+                <p className="table-scroll-hint">Click a column heading to sort. Swipe horizontally on smaller screens.</p>
+                <div className="menu-table-shell">
+                  <table className="menu-table">
+                    <thead>
+                      <tr>
+                        <th className="select-column">Select</th>
+                        {renderSortableTableHeader('Meal', 'description')}
+                        {renderSortableTableHeader('Ordered Status', 'status')}
+                        {renderSortableTableHeader('Category', 'category')}
+                        {renderSortableTableHeader('Last Ordered', 'lastOrderedDate')}
+                        {renderSortableTableHeader('Times Ordered', 'timesOrdered')}
+                        {renderSortableTableHeader('Feedback Notes', 'feedback')}
+                        {renderSortableTableHeader('Notes for Chef', 'chefNotes')}
+                        {renderSortableTableHeader('Last Lynn Rating', 'lynnRating')}
+                        {renderSortableTableHeader('Last David Rating', 'davidRating')}
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableMeals.length > 0
+                        ? tableMeals.map(renderMealTableRow)
+                        : <tr><td className="empty-table-row" colSpan={11}>No meals match the current search and filters.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
               </section>
-            )
-          })}
+            )}
           <div className="footer-actions">
             <button type="button" className="secondary-button" onClick={() => setScreen('home')}>Back</button>
-            <button type="button" disabled={selectedMealIds.length !== 5} onClick={() => setScreen('review')}>Review {selectedMealIds.length}/5 selected</button>
+            <button type="button" disabled={!selectionIsComplete} onClick={() => setScreen('review')}>Review {selectedMealIds.length}/5 selected</button>
           </div>
+          {selectionTrayOpen ? (
+            <aside className="selection-tray" aria-label="Selected meals" aria-live="polite">
+              <div className="selection-tray-header">
+                <div>
+                  <strong>Selected meals</strong>
+                  <span>{selectedMealIds.length}/5 selected</span>
+                </div>
+                <button type="button" className="secondary-button compact-button" onClick={() => setSelectionTrayOpen(false)}>Hide</button>
+              </div>
+              <div className="selection-tray-list">
+                {selectedMeals.length > 0 ? selectedMeals.map((meal) => (
+                  <div className="selection-tray-item" key={meal.id}>
+                    <div>
+                      <strong>{meal.description}</strong>
+                      <span>{categoryLabels[meal.category]}</span>
+                    </div>
+                    <button type="button" className="selection-tray-remove" onClick={() => toggleMeal(meal)} aria-label={`Remove ${meal.description}`}>Remove</button>
+                  </div>
+                )) : <p>No meals selected yet.</p>}
+              </div>
+              {selectedMealIds.length === 5 && !selectionIsComplete && <p className="selection-tray-warning">Choose exactly one breakfast and four main meals.</p>}
+              <button type="button" disabled={!selectionIsComplete} onClick={() => setScreen('review')}>Review selections</button>
+            </aside>
+          ) : (
+            <button type="button" className="selection-tray-reopen" onClick={() => setSelectionTrayOpen(true)}>Selected {selectedMealIds.length}/5</button>
+          )}
         </section>
       </main>
     )
