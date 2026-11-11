@@ -39,6 +39,8 @@ type RatingEntry = {
 type WeeklySelection = {
   weekOf: string
   submittedAt: string
+  extraSmall?: number
+  extraLarge?: number
   selections: {
     mealId?: string
     description: string
@@ -311,6 +313,8 @@ function mergeWeeklySelections(base: WeeklySelection, incoming: WeeklySelection)
   return {
     weekOf: base.weekOf,
     submittedAt: base.submittedAt > incoming.submittedAt ? base.submittedAt : incoming.submittedAt,
+    extraSmall: incoming.extraSmall ?? base.extraSmall,
+    extraLarge: incoming.extraLarge ?? base.extraLarge,
     selections: Array.from(selectionsByDescription.values()),
   }
 }
@@ -1062,6 +1066,8 @@ function App() {
     const submittedWeek: WeeklySelection = {
       weekOf: selectedWeekOf,
       submittedAt: toIsoDate(new Date()),
+      extraSmall,
+      extraLarge,
       selections: selectedMeals.map((meal) => {
         const qty = getQuantity(meal)
         return {
@@ -1480,6 +1486,9 @@ function App() {
                   <div>
                     <h2>Week of {formatWeekHeading(week.weekOf)}</h2>
                     <p>{isSkipped ? 'Skipped' : <>{week.weekOf === currentWeekOf ? 'Current week' : `Submitted ${formatWeek(week.submittedAt)}`}{feedbackSent ? ' · Feedback sent' : ratingsCompleted ? ' · Ratings completed' : missingRatings > 0 ? ` · ${missingRatings} meals need ratings` : ' · All meals rated'}</>}</p>
+                    {!isSkipped && (week.extraSmall !== undefined || week.extraLarge !== undefined) && (
+                      <p>{week.extraSmall ?? 0} additional small · {week.extraLarge ?? 0} additional large</p>
+                    )}
                   </div>
                   {!isSkipped && <div className="section-actions">
                     {!ratingsCompleted && (

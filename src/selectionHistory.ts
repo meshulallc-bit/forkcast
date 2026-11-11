@@ -1,6 +1,8 @@
 export type ImportedWeeklySelection = {
   weekOf: string
   submittedAt: string
+  extraSmall?: number
+  extraLarge?: number
   selections: {
     description: string
     davidQuantity: number
@@ -45,6 +47,90 @@ export const importedWeeklySelections: ImportedWeeklySelection[] = [
       },
       {
         "description": "Marinated Grilled chicken with blisters green beans fenugreek chipotle tomato sauce",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-11-01",
+    "submittedAt": "2026-11-01",
+    "selections": [
+      {
+        "description": "Egg salad breakfast pita",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "David likes paprika in egg salad (like a deviled egg flavor)",
+        "comments": ""
+      },
+      {
+        "description": "Pomegranate braised lamb with zucchini and pistachio mint rice",
+        "davidQuantity": 3,
+        "lynnQuantity": 1,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Filet tenderloins and roasted beets with horseradish sauce",
+        "davidQuantity": 3,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Ground bison or turkey stuffed bell peppers",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "bison",
+        "comments": ""
+      },
+      {
+        "description": "Marinated grilled chicken with beet and apple salad",
+        "davidQuantity": 2,
+        "lynnQuantity": 3,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
+    "weekOf": "2026-10-25",
+    "submittedAt": "2026-10-25",
+    "extraSmall": 2,
+    "extraLarge": 2,
+    "selections": [
+      {
+        "description": "Cottage cheese scrambled eggs avocado and chicken sausage links",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Shepherds Pie",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Spicy al vodka sweet potato chicken spinach vegetable lasagna",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Sweet potato and ground chicken/turkey chili",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Asian marinated grilled chicken rice salad",
         "davidQuantity": 2,
         "lynnQuantity": 2,
         "notesForChef": "",
