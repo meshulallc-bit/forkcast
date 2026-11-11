@@ -12,6 +12,47 @@ export type ImportedWeeklySelection = {
 
 export const importedWeeklySelections: ImportedWeeklySelection[] = [
   {
+    "weekOf": "2026-11-08",
+    "submittedAt": "2026-11-08",
+    "selections": [
+      {
+        "description": "Egg and green chile or egg and breakfast spice ground chicken (not processed) breakfast burritos* montereyjack/cheddar",
+        "davidQuantity": 5,
+        "lynnQuantity": 5,
+        "notesForChef": "Ground chicken option",
+        "comments": ""
+      },
+      {
+        "description": "Filet with radish cucumber and celery salad with lemon caper dressing",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Marinated chicken with artichoke potato salad lemon and capers",
+        "davidQuantity": 3,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Lemon grass chicken salad with cabbage and brown rice noodles",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      },
+      {
+        "description": "Marinated Grilled chicken with blisters green beans fenugreek chipotle tomato sauce",
+        "davidQuantity": 2,
+        "lynnQuantity": 2,
+        "notesForChef": "",
+        "comments": ""
+      }
+    ]
+  },
+  {
     "weekOf": "2026-09-27",
     "submittedAt": "2026-09-27",
     "selections": [
