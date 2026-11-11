@@ -1233,10 +1233,18 @@ function App() {
     return (
       <article className={`meal-card ${selected ? 'selected' : ''}`} key={meal.id}>
           <div className="meal-card-header">
-            <button type="button" className="meal-title-button" onClick={() => toggleMeal(meal)} disabled={disabled}>
-              <span className="checkbox" aria-hidden="true">{selected ? '✓' : ''}</span>
+            <div className="meal-title-static selectable-meal-title">
+              <button
+                type="button"
+                className="meal-select-button"
+                onClick={() => toggleMeal(meal)}
+                disabled={disabled}
+                aria-label={`${selected ? 'Remove' : 'Select'} ${meal.description}`}
+              >
+                <span className="checkbox" aria-hidden="true">{selected ? '✓' : ''}</span>
+              </button>
               <strong>{meal.description}</strong>
-            </button>
+            </div>
             <div className="status-choice-row" aria-label="Meal status">
               {(['notOrdered', 'ordered', 'favorite', 'doNotOrderAgain'] as MealStatus[]).map((status) => (
                 <button

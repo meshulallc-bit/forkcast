@@ -275,6 +275,26 @@ button:disabled {
   background: transparent;
 }
 
+.meal-select-button,
+.meal-select-button:hover {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--forecast-orange);
+  padding: 0;
+}
+
+.meal-title-static.selectable-meal-title strong {
+  display: block;
+  overflow: visible;
+  cursor: text;
+  -webkit-line-clamp: unset;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .meal-title-button strong,
 .meal-title-static strong {
   min-width: 0;
