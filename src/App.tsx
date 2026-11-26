@@ -67,9 +67,13 @@ type StoredAppData = {
   unmatchedEdits: Record<string, string>
   completedRatingWeeks: string[]
   sentFeedbackWeeks: string[]
+  resumeReviewWeekOf?: string
 }
 
 const storageKey = 'forkcast-v2'
+const rollbackMigrationKey = 'forkcast-rollback-dec-6-restore-nov-29-v1'
+const rollbackWeekOf = '2026-12-06'
+const resumeWeekOf = '2026-11-29'
 
 const categoryLabels: Record<MealCategory, string> = {
   breakfast: 'Breakfast',
@@ -91,13 +95,16 @@ const statusLabels: Record<MealStatus, string> = {
 }
 
 function loadStoredData(): StoredAppData {
-  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, editedComments: {}, deletedCommentIds: [], mealRatings: {}, unmatchedEdits: {}, completedRatingWeeks: [], sentFeedbackWeeks: [] }
+  const fallback = { submittedWeeks: [], selectionDrafts: {}, mealOverrides: {}, customMeals: [], deletedMealIds: [], mealComments: {}, editedComments: {}, deletedCommentIds: [], mealRatings: {}, unmatchedEdits: {}, completedRatingWeeks: [], sentFeedbackWeeks: [], resumeReviewWeekOf: undefined }
 
   try {
     const raw = localStorage.getItem(storageKey)
-    if (!raw) return fallback
+    if (!raw) {
+      localStorage.setItem(rollbackMigrationKey, 'applied')
+      return fallback
+    }
     const parsed = JSON.parse(raw) as Partial<StoredAppData>
-    return {
+    const data: StoredAppData = {
       submittedWeeks: parsed.submittedWeeks ?? [],
       selectionDrafts: parsed.selectionDrafts ?? {},
       mealOverrides: parsed.mealOverrides ?? {},
@@ -110,9 +117,113 @@ function loadStoredData(): StoredAppData {
       unmatchedEdits: parsed.unmatchedEdits ?? {},
       completedRatingWeeks: parsed.completedRatingWeeks ?? [],
       sentFeedbackWeeks: parsed.sentFeedbackWeeks ?? [],
+      resumeReviewWeekOf: parsed.resumeReviewWeekOf,
     }
+    if (localStorage.getItem(rollbackMigrationKey)) return data
+
+    const migrated = rollbackDecemberAndRestoreNovember(data)
+    localStorage.setItem(storageKey, JSON.stringify(migrated))
+    localStorage.setItem(rollbackMigrationKey, 'applied')
+    return migrated
   } catch {
     return fallback
+  }
+}
+
+function selectionMealId(selection: WeeklySelection['selections'][number], data: StoredAppData) {
+  if (selection.mealId) return selection.mealId
+  const meal = [...baseMeals, ...data.customMeals].find((item) => normalizeDescription(item.description) === normalizeDescription(selection.description))
+  return meal?.id ?? historyMealId(selection.description)
+}
+
+function draftFromSubmittedWeek(week: WeeklySelection, data: StoredAppData): SelectionDraft {
+  const selectedMealIds: string[] = []
+  const quantities: Quantities = {}
+  const chefNotes: ChefNotes = {}
+
+  for (const selection of week.selections) {
+    const mealId = selectionMealId(selection, data)
+    if (!selectedMealIds.includes(mealId)) selectedMealIds.push(mealId)
+    quantities[mealId] = { david: selection.davidQuantity, lynn: selection.lynnQuantity }
+    chefNotes[mealId] = selection.notesForChef
+  }
+
+  return {
+    selectedMealIds,
+    quantities,
+    chefNotes,
+    extraSmall: week.extraSmall ?? 2,
+    extraLarge: week.extraLarge ?? 2,
+  }
+}
+
+function rollbackDecemberAndRestoreNovember(data: StoredAppData): StoredAppData {
+  const novemberSubmission = data.submittedWeeks.find((week) => week.weekOf === resumeWeekOf)
+  const existingNovemberDraft = data.selectionDrafts[resumeWeekOf]
+  const submittedNovemberDraft = novemberSubmission ? draftFromSubmittedWeek(novemberSubmission, data) : undefined
+  const novemberDraft = existingNovemberDraft && submittedNovemberDraft ? {
+    ...submittedNovemberDraft,
+    ...existingNovemberDraft,
+    selectedMealIds: existingNovemberDraft.selectedMealIds.length > 0 ? existingNovemberDraft.selectedMealIds : submittedNovemberDraft.selectedMealIds,
+    quantities: { ...submittedNovemberDraft.quantities, ...existingNovemberDraft.quantities },
+    chefNotes: { ...submittedNovemberDraft.chefNotes, ...existingNovemberDraft.chefNotes },
+  } : existingNovemberDraft ?? submittedNovemberDraft
+  const removedSubmissions = data.submittedWeeks.filter((week) => week.weekOf === rollbackWeekOf || week.weekOf === resumeWeekOf)
+  const remainingSubmittedWeeks = data.submittedWeeks.filter((week) => week.weekOf !== rollbackWeekOf && week.weekOf !== resumeWeekOf)
+  const removalCounts = new Map<string, { count: number; description: string }>()
+
+  for (const week of removedSubmissions) {
+    for (const selection of week.selections) {
+      const mealId = selectionMealId(selection, data)
+      const existing = removalCounts.get(mealId)
+      removalCounts.set(mealId, { count: (existing?.count ?? 0) + 1, description: selection.description })
+    }
+  }
+
+  const mealOverrides = { ...data.mealOverrides }
+  const catalogMeals = [...baseMeals, ...data.customMeals]
+
+  for (const [mealId, removal] of removalCounts) {
+    const existingOverride = mealOverrides[mealId]
+    if (!existingOverride) continue
+    const baseMeal = catalogMeals.find((meal) => meal.id === mealId || normalizeDescription(meal.description) === normalizeDescription(removal.description))
+    const baseTimesOrdered = baseMeal?.timesOrdered ?? 0
+    const currentTimesOrdered = existingOverride.timesOrdered ?? baseTimesOrdered
+    const timesOrdered = Math.max(baseTimesOrdered, currentTimesOrdered - removal.count)
+    const remainingDates = [
+      ...(baseMeal?.lastOrderedDate.match(/^\d{4}-\d{2}-\d{2}$/) ? [baseMeal.lastOrderedDate] : []),
+      ...importedWeeklySelections
+        .filter((week) => week.selections.some((selection) => {
+          const importedDescription = data.unmatchedEdits[`${selection.description}-`] ?? selection.description
+          return selectionMealId(selection, data) === mealId || normalizeDescription(importedDescription) === normalizeDescription(removal.description)
+        }))
+        .map((week) => week.weekOf),
+      ...remainingSubmittedWeeks
+        .filter((week) => week.selections.some((selection) => selectionMealId(selection, data) === mealId || normalizeDescription(selection.description) === normalizeDescription(removal.description)))
+        .map((week) => week.weekOf),
+    ].sort((a, b) => b.localeCompare(a))
+    const status = existingOverride.status && existingOverride.status !== 'ordered'
+      ? existingOverride.status
+      : timesOrdered > baseTimesOrdered ? 'ordered' : baseMeal?.status ?? (timesOrdered > 0 ? 'ordered' : 'notOrdered')
+
+    mealOverrides[mealId] = {
+      ...existingOverride,
+      status,
+      timesOrdered,
+      lastOrderedDate: remainingDates[0] ?? 'Never',
+    }
+  }
+
+  const selectionDrafts = { ...data.selectionDrafts }
+  delete selectionDrafts[rollbackWeekOf]
+  if (novemberDraft) selectionDrafts[resumeWeekOf] = novemberDraft
+
+  return {
+    ...data,
+    submittedWeeks: remainingSubmittedWeeks,
+    selectionDrafts,
+    mealOverrides,
+    resumeReviewWeekOf: novemberDraft ? resumeWeekOf : undefined,
   }
 }
 
@@ -324,14 +435,18 @@ function mergeWeeklySelections(base: WeeklySelection, incoming: WeeklySelection)
 
 function App() {
   const [storedData, setStoredData] = useState(loadStoredData)
-  const [screen, setScreen] = useState<Screen>('home')
-  const [selectedWeekOf, setSelectedWeekOf] = useState('')
-  const [selectedMealIds, setSelectedMealIds] = useState<string[]>([])
+  const initialReviewWeekOf = storedData.resumeReviewWeekOf && storedData.selectionDrafts[storedData.resumeReviewWeekOf]
+    ? storedData.resumeReviewWeekOf
+    : ''
+  const initialReviewDraft = initialReviewWeekOf ? storedData.selectionDrafts[initialReviewWeekOf] : undefined
+  const [screen, setScreen] = useState<Screen>(initialReviewDraft ? 'review' : 'home')
+  const [selectedWeekOf, setSelectedWeekOf] = useState(initialReviewWeekOf)
+  const [selectedMealIds, setSelectedMealIds] = useState<string[]>(initialReviewDraft?.selectedMealIds ?? [])
   const [optionMode, setOptionMode] = useState<'recommended' | 'more' | 'all'>('recommended')
-  const [quantities, setQuantities] = useState<Quantities>({})
-  const [chefNotes, setChefNotes] = useState<ChefNotes>({})
-  const [extraSmall, setExtraSmall] = useState(2)
-  const [extraLarge, setExtraLarge] = useState(2)
+  const [quantities, setQuantities] = useState<Quantities>(initialReviewDraft?.quantities ?? {})
+  const [chefNotes, setChefNotes] = useState<ChefNotes>(initialReviewDraft?.chefNotes ?? {})
+  const [extraSmall, setExtraSmall] = useState(initialReviewDraft?.extraSmall ?? 2)
+  const [extraLarge, setExtraLarge] = useState(initialReviewDraft?.extraLarge ?? 2)
   const [generatedEmail, setGeneratedEmail] = useState('')
   const [approved, setApproved] = useState(false)
   const [chefEmailOpened, setChefEmailOpened] = useState(false)
@@ -1792,7 +1907,7 @@ function App() {
   if (screen === 'review') {
     return (
       <main className="app-shell">
-        <section className="hero-card wide-card">
+        <section className="hero-card wide-card review-card">
           <div className="page-topline">
             <p className="eyebrow">Forkcast</p>
             <div className="top-actions">
@@ -1800,8 +1915,8 @@ function App() {
               <button type="button" className="secondary-button compact-button" onClick={() => setScreen('home')}>Home</button>
             </div>
           </div>
-          <h1>Review week of {formatWeek(selectedWeekOf)}</h1>
-          <p className="subtitle">Confirm quantities and chef notes before sending.</p>
+          <h1 className="review-title">Review week of {formatWeek(selectedWeekOf)}</h1>
+          <p className="subtitle review-subtitle">Confirm quantities and chef notes before sending.</p>
           <div className="review-list">
             {selectedMeals.map((meal) => {
               const qty = getQuantity(meal)
