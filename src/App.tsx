@@ -1845,8 +1845,8 @@ function App() {
           </div>
           <div className="view-toggle" aria-label="Menu layout">
             <span>View</span>
-            <button type="button" className={menuView === 'table' ? 'control-active' : 'control-button'} onClick={() => setMenuView('table')} aria-pressed={menuView === 'table'}>Table</button>
-            <button type="button" className={menuView === 'block' ? 'control-active' : 'control-button'} onClick={() => setMenuView('block')} aria-pressed={menuView === 'block'}>Blocks</button>
+            <button type="button" className={menuView === 'table' ? 'control-active' : 'control-button'} onClick={() => setMenuView('table')} aria-pressed={menuView === 'table'}>List</button>
+            <button type="button" className={menuView === 'block' ? 'control-active' : 'control-button'} onClick={() => setMenuView('block')} aria-pressed={menuView === 'block'}>Card</button>
           </div>
           {optionMode === 'all' && showAddMeal && (
             <section className="add-meal-panel" aria-label="Add meal card">
@@ -1887,7 +1887,7 @@ function App() {
           )}
           {(optionMode === 'all' || menuView === 'table') && (
             <label className="meal-search">
-              {menuView === 'table' ? 'Search all table columns' : 'Search meals'}
+              {menuView === 'table' ? 'Search all list columns' : 'Search meals'}
               <input
                 value={mealSearch}
                 onChange={(event) => setMealSearch(event.target.value)}
@@ -1966,7 +1966,7 @@ function App() {
                 </section>
               )
             }) : (
-              <section className="menu-table-section" aria-label="Meal options table">
+              <section className="menu-table-section" aria-label="Meal options list">
                 <p className="table-scroll-hint">Click a column heading to sort. Swipe horizontally on smaller screens.</p>
                 <div className="menu-table-shell">
                   <table className="menu-table">
