@@ -977,7 +977,7 @@ button:disabled {
 
 .menu-table {
   width: 100%;
-  min-width: 1500px;
+  min-width: 1620px;
   border-collapse: separate;
   border-spacing: 0;
   color: var(--forkcast-navy);
@@ -1510,7 +1510,7 @@ button:disabled {
   }
 
   .menu-table {
-    min-width: 1500px;
+    min-width: 1620px;
   }
 
   .selection-tray {

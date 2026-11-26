@@ -10,7 +10,7 @@ type ChefNotes = Record<string, string>
 type MealOverrides = Record<string, Partial<Meal>>
 type Screen = 'home' | 'pick' | 'review' | 'history'
 type MenuView = 'block' | 'table'
-type TableSortKey = 'description' | 'status' | 'category' | 'lastOrderedDate' | 'timesOrdered' | 'feedback' | 'chefNotes' | 'lynnRating' | 'davidRating'
+type TableSortKey = 'description' | 'status' | 'category' | 'expiresAt' | 'lastOrderedDate' | 'timesOrdered' | 'feedback' | 'chefNotes' | 'lynnRating' | 'davidRating'
 type NewMealDraft = { category: MealCategory; description: string }
 type ImportMealDraft = { text: string }
 type ImportMealEntry = { description: string; category: MealCategory }
@@ -431,15 +431,17 @@ function App() {
     submittedWeeksByDate.set(week.weekOf, importedWeek ? mergeWeeklySelections(importedWeek, week) : week)
   }
   const allSubmittedWeeks = Array.from(submittedWeeksByDate.values()).sort((a, b) => b.weekOf.localeCompare(a.weekOf))
+  const today = new Date()
   const completedWeekSet = new Set(allSubmittedWeeks.map((week) => week.weekOf))
   for (const [weekOf, draft] of Object.entries(storedData.selectionDrafts)) {
     const draftMeals = draft.selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
     const draftIsComplete = draft.selectedMealIds.length === 5
+      && draftMeals.length === 5
+      && draftMeals.every((meal) => !isMealArchivedForSelection(meal, weekOf))
       && draftMeals.filter((meal) => meal.category === 'breakfast').length === 1
       && draftMeals.filter((meal) => meal.category !== 'breakfast').length === 4
     if (draftIsComplete) completedWeekSet.add(weekOf)
   }
-  const today = new Date()
   const currentWeekOf = sundayForDate(today)
   const saturdayTargetWeek = today.getDay() === 6 ? toIsoDate(addDays(today, 8)) : null
   const showSaturdaySelectPrompt = saturdayTargetWeek ? !completedWeekSet.has(saturdayTargetWeek) : false
@@ -448,7 +450,10 @@ function App() {
   const selectedMeals = selectedMealIds.map((id) => mealById.get(id)).filter((meal): meal is Meal => Boolean(meal))
   const selectedBreakfastCount = selectedMeals.filter((meal) => meal.category === 'breakfast').length
   const selectedMainCount = selectedMeals.filter((meal) => meal.category !== 'breakfast').length
-  const selectionIsComplete = selectedMealIds.length === 5 && selectedBreakfastCount === 1 && selectedMainCount === 4
+  const selectionIsComplete = selectedMealIds.length === 5
+    && selectedBreakfastCount === 1
+    && selectedMainCount === 4
+    && selectedMeals.every((meal) => !isMealArchivedForSelection(meal))
 
   useEffect(() => {
     if (!selectedWeekOf || (screen !== 'pick' && screen !== 'review')) return
@@ -765,8 +770,12 @@ function App() {
 
   function startWeekSelection(weekOf: string) {
     const draft = storedData.selectionDrafts[weekOf]
+    const availableSelectedMealIds = (draft?.selectedMealIds ?? []).filter((mealId) => {
+      const meal = mealById.get(mealId)
+      return meal && !isMealArchivedForSelection(meal, weekOf)
+    })
     setSelectedWeekOf(weekOf)
-    setSelectedMealIds(draft?.selectedMealIds ?? [])
+    setSelectedMealIds(availableSelectedMealIds)
     setQuantities(draft?.quantities ?? {})
     setChefNotes(draft?.chefNotes ?? {})
     setExtraSmall(draft?.extraSmall ?? 2)
@@ -1018,6 +1027,7 @@ function App() {
   function sortedMealsForCategory(category: MealCategory) {
     const sortedMeals = meals
       .filter((meal) => meal.category === category)
+      .filter((meal) => !isMealArchivedForSelection(meal))
       .filter((meal) => optionMode === 'all' || meal.status !== 'doNotOrderAgain')
       .sort((a, b) => {
         const scoreDiff = recommendationScore(b) - recommendationScore(a)
@@ -1062,6 +1072,7 @@ function App() {
       meal.description,
       statusLabels[meal.status],
       categoryLabels[meal.category],
+      meal.expiresAt ? `Expires ${meal.expiresAt} ${formatWeek(meal.expiresAt)}` : 'No expiration',
       meal.lastOrderedDate,
       formatLastOrdered(meal.lastOrderedDate),
       String(meal.timesOrdered),
@@ -1077,6 +1088,7 @@ function App() {
     if (key === 'description') return normalizeDescription(meal.description)
     if (key === 'status') return statusLabels[meal.status]
     if (key === 'category') return categoryLabels[meal.category]
+    if (key === 'expiresAt') return meal.expiresAt ?? ''
     if (key === 'lastOrderedDate') return meal.lastOrderedDate.match(/^\d{4}-\d{2}-\d{2}$/) ? meal.lastOrderedDate : ''
     if (key === 'timesOrdered') return meal.timesOrdered
     if (key === 'feedback') return normalizeDescription(feedbackNotesForMeal(meal).map((note) => note.text).join(' '))
@@ -1103,6 +1115,11 @@ function App() {
     setTableSort((current) => current.key === key
       ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
       : { key, direction: 'asc' })
+  }
+
+  function isMealArchivedForSelection(meal: Meal, weekOf = selectedWeekOf || currentWeekOf) {
+    if (!meal.expiresAt) return false
+    return toIsoDate(today) > meal.expiresAt || weekOf > meal.expiresAt
   }
 
   function selectionDisabled(meal: Meal) {
@@ -1169,7 +1186,9 @@ function App() {
   const chefEmail = generatedEmail || (selectedWeekOf ? buildChefEmail() : '')
 
   function saveSelectedWeek() {
-    if (!selectionIsComplete) return ''
+    const currentDate = toIsoDate(new Date())
+    const hasExpiredSelection = selectedMeals.some((meal) => meal.expiresAt && (currentDate > meal.expiresAt || selectedWeekOf > meal.expiresAt))
+    if (!selectionIsComplete || hasExpiredSelection) return ''
 
     const submittedWeek: WeeklySelection = {
       weekOf: selectedWeekOf,
@@ -1401,6 +1420,7 @@ function App() {
             {renderRatingControl(meal, 'David', toIsoDate(new Date()), meal.davidRating)}
             {renderRatingControl(meal, 'Lynn', toIsoDate(new Date()), meal.lynnRating)}
             {avgRating !== null && <span>Average rating: {avgRating.toFixed(1)}/5 ({ratingCount})</span>}
+            {meal.expiresAt && <span>Available through: {formatLastOrdered(meal.expiresAt)}</span>}
             <span>Last ordered: {formatLastOrdered(meal.lastOrderedDate)}</span>
             <span>Times ordered: {meal.timesOrdered}</span>
             {orderedDates.length > 1 && <span>Ordered dates: {orderedDates.map(formatLastOrdered).join(', ')}</span>}
@@ -1489,6 +1509,7 @@ function App() {
             </select>
           ) : categoryLabels[meal.category]}
         </td>
+        <td>{meal.expiresAt ? formatLastOrdered(meal.expiresAt) : '—'}</td>
         <td>{formatLastOrdered(meal.lastOrderedDate)}</td>
         <td className="numeric-table-cell">{meal.timesOrdered}</td>
         <td className="feedback-column">
@@ -1877,7 +1898,7 @@ function App() {
           )}
           {(optionMode === 'all' || menuView === 'table') && (
             <datalist id="meal-search-options">
-              {meals.map((meal) => <option value={meal.description} key={meal.id} />)}
+              {meals.filter((meal) => !isMealArchivedForSelection(meal)).map((meal) => <option value={meal.description} key={meal.id} />)}
             </datalist>
           )}
           {optionMode === 'all' && (
@@ -1924,7 +1945,7 @@ function App() {
                   <div className="section-heading">
                     <div>
                       <h2>{categoryLabels[category]}</h2>
-                      <p>{category === 'breakfast' ? `Choose 1. Selected ${count} of 1.` : `Recommended ${target}. Selected ${count} here and ${mainSelectedCount} of 4 main meals total.`} Showing {visibleMeals.length} of {meals.filter((meal) => meal.category === category).length} menu options.</p>
+                      <p>{category === 'breakfast' ? `Choose 1. Selected ${count} of 1.` : `Recommended ${target}. Selected ${count} here and ${mainSelectedCount} of 4 main meals total.`} Showing {visibleMeals.length} of {meals.filter((meal) => meal.category === category && !isMealArchivedForSelection(meal)).length} menu options.</p>
                     </div>
                     <span className={categoryComplete ? 'complete-pill' : 'open-pill'}>{categoryComplete ? 'Complete' : `${slotsLeft} ${category === 'breakfast' ? 'breakfast' : 'main'} left`}</span>
                   </div>
@@ -1949,6 +1970,7 @@ function App() {
                         {renderSortableTableHeader('Meal', 'description')}
                         {renderSortableTableHeader('Ordered Status', 'status')}
                         {renderSortableTableHeader('Category', 'category')}
+                        {renderSortableTableHeader('Expires', 'expiresAt')}
                         {renderSortableTableHeader('Last Ordered', 'lastOrderedDate')}
                         {renderSortableTableHeader('Times Ordered', 'timesOrdered')}
                         {renderSortableTableHeader('Feedback Notes', 'feedback')}
@@ -1961,7 +1983,7 @@ function App() {
                     <tbody>
                       {tableMeals.length > 0
                         ? tableMeals.map(renderMealTableRow)
-                        : <tr><td className="empty-table-row" colSpan={11}>No meals match the current search and filters.</td></tr>}
+                        : <tr><td className="empty-table-row" colSpan={12}>No meals match the current search and filters.</td></tr>}
                     </tbody>
                   </table>
                 </div>
