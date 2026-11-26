@@ -10,6 +10,7 @@ type ChefNotes = Record<string, string>
 type MealOverrides = Record<string, Partial<Meal>>
 type Screen = 'home' | 'pick' | 'review' | 'history'
 type MenuView = 'block' | 'table'
+type MealCategoryFilter = MealCategory | 'main' | 'all'
 type TableSortKey = 'description' | 'status' | 'category' | 'expiresAt' | 'lastOrderedDate' | 'timesOrdered' | 'feedback' | 'chefNotes' | 'lynnRating' | 'davidRating'
 type NewMealDraft = { category: MealCategory; description: string }
 type ImportMealDraft = { text: string }
@@ -348,6 +349,7 @@ function App() {
   const [starFilter, setStarFilter] = useState(0)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [statusFilter, setStatusFilter] = useState<MealStatus | 'all'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<MealCategoryFilter>('all')
   const [menuView, setMenuView] = useState<MenuView>(() => (
     typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches ? 'table' : 'block'
   ))
@@ -1050,6 +1052,7 @@ function App() {
   }
 
   function visibleMealsForCategory(category: MealCategory) {
+    if (!categoryMatchesFilter(category)) return []
     const searchTerm = optionMode === 'all' || menuView === 'table' ? normalizeDescription(mealSearch) : ''
     const categoryMeals = sortedMealsForCategory(category).filter((meal) =>
       (!searchTerm || (menuView === 'table' ? tableSearchText(meal).includes(searchTerm) : normalizeDescription(meal.description).includes(searchTerm)))
@@ -1122,6 +1125,17 @@ function App() {
     setStarFilter(0)
     setStatusFilter('all')
     setFavoritesOnly(false)
+    setCategoryFilter('all')
+  }
+
+  function categoryMatchesFilter(category: MealCategory) {
+    if (categoryFilter === 'all') return true
+    if (categoryFilter === 'main') return category !== 'breakfast'
+    return category === categoryFilter
+  }
+
+  function toggleCategoryFilter(filter: Exclude<MealCategoryFilter, 'all'>) {
+    setCategoryFilter((current) => current === filter ? 'all' : filter)
   }
 
   function isMealArchivedForSelection(meal: Meal, weekOf = selectedWeekOf || currentWeekOf) {
@@ -1923,7 +1937,7 @@ function App() {
                   type="button"
                   className="secondary-button compact-button"
                   onClick={clearMealFilters}
-                  disabled={!mealSearch && starFilter === 0 && statusFilter === 'all' && !favoritesOnly}
+                  disabled={!mealSearch && starFilter === 0 && statusFilter === 'all' && !favoritesOnly && categoryFilter === 'all'}
                 >
                   Clear all filters
                 </button>
@@ -1954,25 +1968,42 @@ function App() {
               </div>
             </>
           )}
-          <nav className="selection-progress-bar" aria-label="Selection progress and category shortcuts">
-            {menuView === 'block' ? (
-              <>
-                <a className={selectedBreakfastCount === 1 ? 'complete-pill' : 'open-pill'} href="#breakfast-section">Breakfast: {selectedBreakfastCount}/1</a>
-                <a className="open-pill" href="#lunchDinner-section">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</a>
-                <a className="open-pill" href="#lowCalorie-section">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</a>
-                <a className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'} href="#lunchDinner-section">Main meals: {mainSelectedCount}/4</a>
-              </>
-            ) : (
-              <>
-                <span className={selectedBreakfastCount === 1 ? 'complete-pill' : 'open-pill'}>Breakfast: {selectedBreakfastCount}/1</span>
-                <span className="open-pill">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</span>
-                <span className="open-pill">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</span>
-                <span className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'}>Main meals: {mainSelectedCount}/4</span>
-                <span className="table-result-count">{tableMeals.length} meals shown</span>
-              </>
-            )}
+          <nav className="selection-progress-bar" aria-label="Selection progress and category filters">
+            <button
+              type="button"
+              className={`${selectedBreakfastCount === 1 ? 'complete-pill' : 'open-pill'}${categoryFilter === 'breakfast' ? ' active-category-filter' : ''}`}
+              onClick={() => toggleCategoryFilter('breakfast')}
+              aria-pressed={categoryFilter === 'breakfast'}
+            >
+              Breakfast: {selectedBreakfastCount}/1
+            </button>
+            <button
+              type="button"
+              className={`open-pill${categoryFilter === 'lunchDinner' ? ' active-category-filter' : ''}`}
+              onClick={() => toggleCategoryFilter('lunchDinner')}
+              aria-pressed={categoryFilter === 'lunchDinner'}
+            >
+              Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}
+            </button>
+            <button
+              type="button"
+              className={`open-pill${categoryFilter === 'lowCalorie' ? ' active-category-filter' : ''}`}
+              onClick={() => toggleCategoryFilter('lowCalorie')}
+              aria-pressed={categoryFilter === 'lowCalorie'}
+            >
+              Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}
+            </button>
+            <button
+              type="button"
+              className={`${mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'}${categoryFilter === 'main' ? ' active-category-filter' : ''}`}
+              onClick={() => toggleCategoryFilter('main')}
+              aria-pressed={categoryFilter === 'main'}
+            >
+              Main meals: {mainSelectedCount}/4
+            </button>
+            {menuView === 'table' && <span className="table-result-count">{tableMeals.length} meals shown</span>}
           </nav>
-          {menuView === 'block' ? menuCategories.map((category) => {
+          {menuView === 'block' ? menuCategories.filter(categoryMatchesFilter).map((category) => {
               const count = selectedCount(meals, selectedMealIds, category)
               const target = categoryTargets[category]
               const visibleMeals = visibleMealsForCategory(category)

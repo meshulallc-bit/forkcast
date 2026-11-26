@@ -975,8 +975,16 @@ button:disabled {
   flex: 0 0 auto;
 }
 
-.selection-progress-bar a {
-  text-decoration: none;
+.selection-progress-bar button {
+  border: 2px solid transparent;
+  line-height: 1.2;
+}
+
+.selection-progress-bar .active-category-filter,
+.selection-progress-bar .active-category-filter:hover {
+  border-color: var(--forkcast-navy);
+  background: var(--forkcast-navy);
+  color: white;
 }
 
 .table-result-count {
