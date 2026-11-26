@@ -1117,6 +1117,13 @@ function App() {
       : { key, direction: 'asc' })
   }
 
+  function clearMealFilters() {
+    setMealSearch('')
+    setStarFilter(0)
+    setStatusFilter('all')
+    setFavoritesOnly(false)
+  }
+
   function isMealArchivedForSelection(meal: Meal, weekOf = selectedWeekOf || currentWeekOf) {
     if (!meal.expiresAt) return false
     return toIsoDate(today) > meal.expiresAt || weekOf > meal.expiresAt
@@ -1894,23 +1901,33 @@ function App() {
             </section>
           )}
           {(optionMode === 'all' || menuView === 'table') && (
-            <label className="meal-search">
-              {menuView === 'table' ? 'Search all list columns' : 'Search meals'}
-              <input
-                value={mealSearch}
-                onChange={(event) => setMealSearch(event.target.value)}
-                placeholder={menuView === 'table' ? 'Search meals, status, category, notes, or ratings' : 'Start typing a meal name'}
-                list="meal-search-options"
-              />
-            </label>
-          )}
-          {(optionMode === 'all' || menuView === 'table') && (
-            <datalist id="meal-search-options">
-              {meals.filter((meal) => !isMealArchivedForSelection(meal)).map((meal) => <option value={meal.description} key={meal.id} />)}
-            </datalist>
+            <div className="meal-search">
+              <label htmlFor="meal-search-field">{menuView === 'table' ? 'Search all list columns' : 'Search meals'}</label>
+              <span className="meal-search-input">
+                <input
+                  id="meal-search-field"
+                  value={mealSearch}
+                  onChange={(event) => setMealSearch(event.target.value)}
+                  placeholder={menuView === 'table' ? 'Search meals, status, category, notes, or ratings' : 'Start typing a meal name'}
+                  autoComplete="off"
+                />
+                {mealSearch && <button type="button" className="meal-search-clear" onClick={() => setMealSearch('')} aria-label="Clear search">X</button>}
+              </span>
+            </div>
           )}
           {optionMode === 'all' && (
             <>
+              <div className="meal-filter-heading">
+                <strong>Filters</strong>
+                <button
+                  type="button"
+                  className="secondary-button compact-button"
+                  onClick={clearMealFilters}
+                  disabled={!mealSearch && starFilter === 0 && statusFilter === 'all' && !favoritesOnly}
+                >
+                  Clear all filters
+                </button>
+              </div>
               <div className="meal-filter-controls" aria-label="Meal filters">
                 <label>
                   Stars
