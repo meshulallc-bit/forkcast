@@ -152,6 +152,7 @@ button:disabled {
 
 .meal-section {
   margin-top: 28px;
+  scroll-margin-top: 72px;
 }
 
 .section-heading {
@@ -944,12 +945,32 @@ button:disabled {
   margin-top: 24px;
 }
 
-.table-selection-summary {
+.selection-progress-bar {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin: 12px 0 18px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(253, 252, 245, 0.97);
+  padding: 10px;
+  box-shadow: 0 8px 22px rgba(26, 54, 93, 0.1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.selection-progress-bar .complete-pill,
+.selection-progress-bar .open-pill,
+.selection-progress-bar .table-result-count {
+  flex: 0 0 auto;
+}
+
+.selection-progress-bar a {
+  text-decoration: none;
 }
 
 .table-result-count {
@@ -995,7 +1016,7 @@ button:disabled {
 
 .menu-table thead th {
   position: sticky;
-  top: 0;
+  top: 58px;
   z-index: 2;
   background: var(--clear-sky-blue);
   color: var(--forkcast-navy);
@@ -1505,7 +1526,7 @@ button:disabled {
   }
 
   .table-result-count {
-    width: 100%;
+    width: auto;
     margin-left: 0;
   }
 

@@ -1927,13 +1927,26 @@ function App() {
                   Favorites only
                 </label>
               </div>
-              {menuView === 'block' && <nav className="category-tabs" aria-label="Meal category shortcuts">
-                {menuCategories.map((category) => (
-                  <a href={`#${category}-section`} key={category}>{categoryLabels[category].replace(' / ', '/')}</a>
-                ))}
-              </nav>}
             </>
           )}
+          <nav className="selection-progress-bar" aria-label="Selection progress and category shortcuts">
+            {menuView === 'block' ? (
+              <>
+                <a className={selectedBreakfastCount === 1 ? 'complete-pill' : 'open-pill'} href="#breakfast-section">Breakfast: {selectedBreakfastCount}/1</a>
+                <a className="open-pill" href="#lunchDinner-section">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</a>
+                <a className="open-pill" href="#lowCalorie-section">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</a>
+                <a className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'} href="#lunchDinner-section">Main meals: {mainSelectedCount}/4</a>
+              </>
+            ) : (
+              <>
+                <span className={selectedBreakfastCount === 1 ? 'complete-pill' : 'open-pill'}>Breakfast: {selectedBreakfastCount}/1</span>
+                <span className="open-pill">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</span>
+                <span className="open-pill">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</span>
+                <span className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'}>Main meals: {mainSelectedCount}/4</span>
+                <span className="table-result-count">{tableMeals.length} meals shown</span>
+              </>
+            )}
+          </nav>
           {menuView === 'block' ? menuCategories.map((category) => {
               const count = selectedCount(meals, selectedMealIds, category)
               const target = categoryTargets[category]
@@ -1954,13 +1967,6 @@ function App() {
               )
             }) : (
               <section className="menu-table-section" aria-label="Meal options table">
-                <div className="table-selection-summary">
-                  <span className={selectedCount(meals, selectedMealIds, 'breakfast') === 1 ? 'complete-pill' : 'open-pill'}>Breakfast: {selectedCount(meals, selectedMealIds, 'breakfast')}/1</span>
-                  <span className="open-pill">Lunch / Dinner: {selectedCount(meals, selectedMealIds, 'lunchDinner')}</span>
-                  <span className="open-pill">Low Calorie: {selectedCount(meals, selectedMealIds, 'lowCalorie')}</span>
-                  <span className={mainSelectedCount === 4 ? 'complete-pill' : 'open-pill'}>Main meals: {mainSelectedCount}/4</span>
-                  <span className="table-result-count">{tableMeals.length} meals shown</span>
-                </div>
                 <p className="table-scroll-hint">Click a column heading to sort. Swipe horizontally on smaller screens.</p>
                 <div className="menu-table-shell">
                   <table className="menu-table">
