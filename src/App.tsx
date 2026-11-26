@@ -1122,6 +1122,14 @@ function App() {
     return toIsoDate(today) > meal.expiresAt || weekOf > meal.expiresAt
   }
 
+  function isMealNearExpiration(meal: Meal, weekOf = selectedWeekOf || currentWeekOf) {
+    if (!meal.expiresAt || isMealArchivedForSelection(meal, weekOf)) return false
+    const currentDate = toIsoDate(today)
+    const referenceDate = weekOf > currentDate ? weekOf : currentDate
+    const daysUntilExpiration = Math.round((parseIsoDate(meal.expiresAt).getTime() - parseIsoDate(referenceDate).getTime()) / (24 * 60 * 60 * 1000))
+    return daysUntilExpiration >= 0 && daysUntilExpiration <= 14
+  }
+
   function selectionDisabled(meal: Meal) {
     if (selectedMealIds.includes(meal.id)) return false
     if (selectedMealIds.length >= 5) return true
@@ -1365,7 +1373,7 @@ function App() {
     const ratingCount = ratingCountForMeal(meal)
 
     return (
-      <article className={`meal-card ${selected ? 'selected' : ''}`} key={meal.id}>
+      <article className={['meal-card', selected ? 'selected' : '', isMealNearExpiration(meal) ? 'expires-soon' : ''].filter(Boolean).join(' ')} key={meal.id}>
           <div className="meal-card-header">
             <div className="meal-title-static selectable-meal-title">
               <button
@@ -1475,7 +1483,7 @@ function App() {
     const isEditing = editingMealIds.includes(meal.id)
 
     return (
-      <tr className={selected ? 'selected-table-row' : ''} key={meal.id}>
+      <tr className={[selected ? 'selected-table-row' : '', isMealNearExpiration(meal) ? 'expires-soon-table-row' : ''].filter(Boolean).join(' ')} key={meal.id}>
         <td className="select-column">
           <input
             type="checkbox"

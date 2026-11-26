@@ -235,6 +235,12 @@ button:disabled {
   background: var(--clear-sky-blue);
 }
 
+.meal-card.expires-soon,
+.meal-card.selected.expires-soon {
+  border-color: #e8a1b2;
+  background: #fff0f3;
+}
+
 .meal-card.active-rating-card {
   border-color: var(--forecast-orange);
   box-shadow: 0 12px 30px rgba(255, 102, 0, 0.12);
@@ -1035,6 +1041,11 @@ button:disabled {
   background: rgba(207, 236, 255, 0.72);
 }
 
+.menu-table .expires-soon-table-row td,
+.menu-table .selected-table-row.expires-soon-table-row td {
+  background: #fff0f3;
+}
+
 .menu-table .select-column {
   position: sticky;
   left: 0;
@@ -1053,6 +1064,11 @@ button:disabled {
 
 .menu-table .selected-table-row .select-column {
   background: var(--clear-sky-blue);
+}
+
+.menu-table .expires-soon-table-row .select-column,
+.menu-table .selected-table-row.expires-soon-table-row .select-column {
+  background: #fff0f3;
 }
 
 .menu-table .select-column input {
